@@ -1,6 +1,7 @@
+# IntelliJ IDEA paths
 .idea
-HashLinkTest.iml
-bin
-out
-# Project exclude paths
+*.iml
+
+# Build paths
 /build/
+/bin/
