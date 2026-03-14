@@ -16,14 +16,14 @@ class BytemodScript {
     final compiler = new BytemodCompiler();
     final result:CompileResult = compiler.compile(BytemodCompiler.tokenize(code));
 
-    vm.symbols = result.nativeSymbols;
     this.functions = result.functions;
-    this.vm.varCounter = compiler.varCounter;
-    this.vm.constants = compiler.constants;
+
+    vm.symbols = result.nativeSymbols;
+    vm.varCounter = compiler.varCounter;
+    vm.constants = compiler.constants;
   }
 
   public function callFunction(funcName:String):Void {
-    Sys.println(' Calling function $funcName from script $fileName');
     if (functions.exists(funcName)) vm.execute(functions.get(funcName));
     else trace('Function with name $funcName() doesn\'t exist !');
   }

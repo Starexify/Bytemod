@@ -3,16 +3,14 @@ import bytemod.BytemodPrinter;
 
 class Main {
   static function main() {
-    var _ = haxe.Timer;
-    var _ = TestClass;
     Bytemod.init();
     //Bytemod.scriptCache.get("test.hx");
+    BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("testFunc"));
 //    var startVM = Timer.stamp();
     Bytemod.scriptCache.get("testTwo.hx").callFunction("testFunc");
 //    var endVM = Timer.stamp();
 //    trace('Bytemod VM: ' + (endVM - startVM) + 's');
 
-    BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("testFunc"));
 
     // VM
 /*    var startVM = Timer.stamp();
@@ -31,5 +29,5 @@ class Main {
 }
 
 class TestClass {
-
+  public function toString() return "I am a TestClass instance!";
 }

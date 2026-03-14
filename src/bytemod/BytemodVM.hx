@@ -2,6 +2,8 @@ package bytemod;
 
 import haxe.ds.Vector;
 
+using StringTools;
+
 class BytemodVM {
   public var constants:Array<Dynamic> = [];
   public var symbols:Array<String> = [];
@@ -12,11 +14,10 @@ class BytemodVM {
   public var heap:Map<Int, Dynamic> = new Map();
   private var heapCounter:Int = 0;
 
-  public var globals:Map<String, Dynamic> = new Map();
-  public function registerClass(name:String, obj:Dynamic) {
+  public function storeInHeap(obj:Dynamic):Int {
     var id = heapCounter++;
     heap.set(id, obj);
-    globals.set(name, id);
+    return id;
   }
 
   public function new() {}
@@ -27,6 +28,8 @@ class BytemodVM {
     if (memory == null) {
       memory = new Vector<Float>(varCounter);
       for(i in 0...varCounter) memory[i] = 0;
+
+      this.heapCounter = varCounter;
     }
 
     var pc:Int = 0;
@@ -43,6 +46,14 @@ class BytemodVM {
           var id = bytecode[pc++];
           stack[sp++] = constants[id];
 
+        case PUSH_STR:
+          var constId = bytecode[pc++];
+          var str = constants[constId];
+
+          var id = heapCounter++;
+          heap.set(id, str);
+          stack[sp++] = id;
+
         case GET_VAR:
           stack[sp++] = memory[bytecode[pc++]];
 
@@ -50,18 +61,16 @@ class BytemodVM {
           memory[bytecode[pc++]] = stack[--sp];
 
         case NEW:
-          var classPath = stack[--sp];
-          var cls = Type.resolveClass(classPath);
+          var constId = bytecode[pc++];
+          var className:String = constants[constId];
+          var cls = resolveClassSafe(className);
 
+          // Set in heap
           if (cls != null) {
             var instance = Type.createInstance(cls, []);
-
-            // Put the new instance in the heap!
-            var id = heapCounter++;
-            heap.set(id, instance);
-            stack[sp++] = id; // Push the NEW ID to the stack
+            stack[sp++] = storeInHeap(instance);
           } else {
-            trace("Error: Could not resolve " + classPath);
+            trace("Error: Class not found -> " + className);
             stack[sp++] = 0;
           }
 
@@ -86,15 +95,30 @@ class BytemodVM {
           stack[sp++] = a / b;
 
         case IS:
-          var target = stack[--sp];
-          var value = stack[--sp];
+          var targetId = stack[--sp];
+          var valueId = stack[--sp];
 
-          var classObj:Dynamic = heap.exists(Std.int(target)) ? heap.get(Std.int(target)) : target;
-          var actualValue:Dynamic = heap.exists(Std.int(value)) ? heap.get(Std.int(value)) : value;
+          var actualValue:Dynamic = heap.exists(Std.int(valueId)) ? heap.get(Std.int(valueId)) : valueId;
+          var targetObj:Dynamic = heap.exists(Std.int(targetId)) ? heap.get(Std.int(targetId)) : targetId;
 
-          var isMatch = Std.isOfType(actualValue, classObj);
+          var isMatch:Bool = false;
 
-          stack[sp++] = isMatch ? 1 : 0;
+          if (Std.isOfType(targetObj, String)) {
+            var cls = resolveClassSafe(targetObj);
+            if (cls != null) {
+              isMatch = Std.isOfType(actualValue, cls);
+            } else {
+              trace("Error: 'is' check failed - Class not found: " + targetObj);
+            }
+          }
+          else if (Std.isOfType(targetObj, Class)) {
+            isMatch = Std.isOfType(actualValue, targetObj);
+          }
+          else {
+            isMatch = Std.isOfType(actualValue, targetObj);
+          }
+
+          stack[sp++] = isMatch ? 1.0 : 0.0;
 
         case PRINT:
           var argCount = bytecode[pc++];
@@ -102,11 +126,13 @@ class BytemodVM {
 
           var args = [];
           for (i in 0...argCount) {
-            args.push(stack[--sp]);
+            var val = stack[--sp];
+
+            var id = Std.int(val);
+            if (id > 0 && heap.exists(id)) args.push(heap.get(id));
+            else args.push(val);
           }
           args.reverse();
-
-          // Use Reflect to call Haxe's trace with the array of arguments
           haxe.Log.trace(args.join(", "), { fileName: "testTwo.hx", lineNumber: lineNum, className: "Bytemod", methodName: "script" });
 
         case CALL_NATIVE:
@@ -131,8 +157,30 @@ class BytemodVM {
     }
 
     trace('--- EXECUTION FINISHED ---');
-    // Trace variable 'a' (ID 0) to see the result
     //trace("Final state of stack: " + stack);
-    trace("Final state of memory: " + memory);
+    trace('--- HEAP ---');
+    trace(heap);
+    trace('--- MEMORY ---');
+    trace(memory);
+    trace('---------------------------');
+  }
+
+  private function resolveClassSafe(className:String):Null<Class<Dynamic>> {
+    var cls = Type.resolveClass(className);
+    if (cls != null) return cls;
+
+    // Try the "Module_Subtype" format
+    cls = Type.resolveClass(className.split(".").join("_"));
+    if (cls != null) return cls;
+
+    // Try just the class name (The "Last Name" after the dot)
+    if (className.contains(".")) {
+      var parts = className.split(".");
+      cls = Type.resolveClass(parts[parts.length - 1]);
+      if (cls != null) return cls;
+    }
+
+    // Check your manual globals or smth later
+    return null;
   }
 }

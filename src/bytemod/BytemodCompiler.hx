@@ -52,18 +52,13 @@ class BytemodCompiler {
     if (firstToken == "new") {
       var className = consume();
 
-      // Handle args
       if (peek() == "(") {
         consume(); // "("
-        if (peek() != ")") {}
         consume(); // ")"
       }
 
-      // We push the class name as a constant so the VM can resolve it
-      bytes.push(OpCode.PUSH_CONST);
-      bytes.push(getConstantId(className));
       bytes.push(OpCode.NEW);
-
+      bytes.push(getConstantId(className));
       return;
     }
 
@@ -95,9 +90,8 @@ class BytemodCompiler {
         consume();
         var typeName = consume();
 
-        var typeId = getConstantId(typeName);
-        bytes.push(OpCode.PUSH_CONST);
-        bytes.push(typeId);
+        bytes.push(OpCode.PUSH_STR);
+        bytes.push(getConstantId(typeName));
 
         bytes.push(OpCode.IS);
       }
@@ -120,8 +114,7 @@ class BytemodCompiler {
       bytecode: [],
       constants: [],
       functions: new Map(),
-      nativeSymbols: this.nativeSymbols,
-      variableMap: this.variableMap
+      nativeSymbols: this.nativeSymbols
     };
 
     while (i < tokens.length) {
@@ -193,9 +186,8 @@ class BytemodCompiler {
     else if (token.startsWith('"')) {
       // It's a String! (e.g. "Hello")
       var str = token.substring(1, token.length - 1);
-      var id = getConstantId(str);
-      bytes.push(OpCode.PUSH_CONST);
-      bytes.push(id);
+      bytes.push(OpCode.PUSH_STR);
+      bytes.push(getConstantId(str));
     }
     else {
       // It's a Variable
@@ -258,4 +250,4 @@ class BytemodCompiler {
 }
 
 typedef Token = { text:String, line:Int };
-typedef CompileResult = {bytecode:Array<Int>, constants:Array<Dynamic>, functions:Map<String, Array<Int>>, nativeSymbols:Array<String>, variableMap:Map<String, Int>}
+typedef CompileResult = {bytecode:Array<Int>, constants:Array<Dynamic>, functions:Map<String, Array<Int>>, nativeSymbols:Array<String>}

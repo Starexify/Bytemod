@@ -18,14 +18,14 @@ class BytemodPrinter {
 
       // Some opcodes have "arguments" following them in the array
       switch (op) {
-        case PUSH_CONST | GET_VAR | SET_VAR:
+        case PUSH_CONST | GET_VAR | SET_VAR | PUSH_STR:
           var arg = code[pc++];
           output += ' ($arg)';
         case PRINT:
           var count = code[pc++];
           var line = code[pc++];
           output += ' (args: $count, line: $line)';
-        case CALL_NATIVE:
+        case CALL_NATIVE | NEW:
           var id = code[pc++];
           output += ' ($id)';
 
