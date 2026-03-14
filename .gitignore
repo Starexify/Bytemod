@@ -1,0 +1,6 @@
+.idea
+HashLinkTest.iml
+bin
+out
+# Project exclude paths
+/build/
