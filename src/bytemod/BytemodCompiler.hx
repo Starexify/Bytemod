@@ -5,6 +5,7 @@ using StringTools;
 class BytemodCompiler {
   public var variableMap:Map<String, Int> = new Map();
   public var varCounter:Int = 0;
+  public var constants:Array<Dynamic> = [];
 
   var tokens:Array<Token>;
   var i:Int = 0;
@@ -47,8 +48,26 @@ class BytemodCompiler {
 
   function parseExpression(bytes:Array<Int>) {
     var firstToken = consume();
-    var next = peek();
 
+    if (firstToken == "new") {
+      var className = consume();
+
+      // Handle args
+      if (peek() == "(") {
+        consume(); // "("
+        if (peek() != ")") {}
+        consume(); // ")"
+      }
+
+      // We push the class name as a constant so the VM can resolve it
+      bytes.push(OpCode.PUSH_CONST);
+      bytes.push(getConstantId(className));
+      bytes.push(OpCode.NEW);
+
+      return;
+    }
+
+    var next = peek();
     if (next == "(") {
       consume(); // "("
       // For now, let's assume 0 arguments for stamp()
@@ -72,6 +91,16 @@ class BytemodCompiler {
         else if (op == "*") bytes.push(OpCode.MUL);
         else if (op == "/") bytes.push(OpCode.DIV);
       }
+      else if (op == "is") {
+        consume();
+        var typeName = consume();
+
+        var typeId = getConstantId(typeName);
+        bytes.push(OpCode.PUSH_CONST);
+        bytes.push(typeId);
+
+        bytes.push(OpCode.IS);
+      }
       else {
         break;
       }
@@ -89,8 +118,10 @@ class BytemodCompiler {
     this.i = 0;
     var result:CompileResult = {
       bytecode: [],
+      constants: [],
       functions: new Map(),
-      nativeSymbols: this.nativeSymbols
+      nativeSymbols: this.nativeSymbols,
+      variableMap: this.variableMap
     };
 
     while (i < tokens.length) {
@@ -123,107 +154,7 @@ class BytemodCompiler {
   function parseExpr(bytes:Array<Int>):Void {
     var t = consume();
 
-    if (t == "if") {
-      if (consume() == "(") {
-        var left:String = consume();
-        var op:String = consume();
-        var right:String = consume();
-        consume(); // ")"
-
-        // Push condition to bytecode
-        pushValue(bytes, left);
-        pushValue(bytes, right);
-
-        bytes.push(OpCode.LT);
-      }
-
-      // 2. Setup Jump for "False"
-      bytes.push(OpCode.JUMP_IF_FALSE);
-      var jumpToElseIdx = bytes.length;
-      bytes.push(0); // Placeholder
-
-      // 3. Handle "{ a = 10; }" (The True Block)
-      if (consume() == "{") {
-        // For now, let's just parse until we hit "}"
-        while (peek() != "}") {
-          // Logic to handle "a = 10;"
-          var name = consume(); // "a"
-          consume(); // "="
-          var v = consume(); // "10"
-          consume(); // ";"
-
-          bytes.push(OpCode.PUSH_INT);
-          bytes.push(Std.parseInt(v));
-          bytes.push(OpCode.SET_VAR);
-          bytes.push(getVarId(name));
-        }
-        consume(); // consume "}"
-      }
-
-      // 4. Setup Jump to skip Else
-      bytes.push(OpCode.JUMP);
-      var jumpToExitIdx = bytes.length;
-      bytes.push(0); // Placeholder
-
-      // 5. PATCH the Else Jump
-      bytes[jumpToElseIdx] = bytes.length;
-
-      // 6. Handle "else { a = 0; }"
-      if (peek() == "else") {
-        consume(); // "else"
-        consume(); // "{"
-        while (peek() != "}") {
-          var name = consume();
-          consume();
-          var v = consume();
-          consume();
-
-          bytes.push(OpCode.PUSH_INT);
-          bytes.push(Std.parseInt(v));
-          bytes.push(OpCode.SET_VAR);
-          bytes.push(getVarId(name));
-        }
-        consume(); // "}"
-      }
-
-      // 7. PATCH the Exit Jump
-      bytes[jumpToExitIdx] = bytes.length;
-    }
-    else if (t == "while") {
-      var loopStart = bytes.length;
-
-      if (consume() == "(") {
-        var varName = consume();
-        var op = consume();
-        var val = consume();
-        consume(); // ")"
-
-        // --- 1. Condition ---
-        bytes.push(OpCode.GET_VAR);
-        bytes.push(getVarId(varName));
-        bytes.push(OpCode.PUSH_INT);
-        bytes.push(Std.parseInt(val));
-        bytes.push(OpCode.LT);
-      }
-
-      bytes.push(OpCode.JUMP_IF_FALSE);
-      var jumpToExitIdx = bytes.length;
-      bytes.push(0); // Placeholder
-
-      if (consume() == "{") {
-        while (peek() != "}") {
-          // (Call your statement parser here)
-          parseStatement(bytes);
-        }
-        consume(); // "}"
-      }
-
-      bytes.push(OpCode.JUMP);
-      bytes.push(loopStart);
-
-      bytes[jumpToExitIdx] = bytes.length;
-    }
-    else if (t == "var" || t == ";") {
+    if (t == "var" || t == ";") {
       return;
     }
     else if (t == "trace") {
@@ -251,11 +182,23 @@ class BytemodCompiler {
   }
 
   function pushValue(bytes:Array<Int>, token:String):Void {
-    var val = Std.parseInt(token);
-    if (val != null) {
-      bytes.push(OpCode.PUSH_INT);
-      bytes.push(val);
-    } else {
+    var valFloat = Std.parseFloat(token);
+
+    if (!Math.isNaN(valFloat)) {
+      // It's a number (Int or Float)!
+      var id = getConstantId(valFloat);
+      bytes.push(OpCode.PUSH_CONST);
+      bytes.push(id);
+    }
+    else if (token.startsWith('"')) {
+      // It's a String! (e.g. "Hello")
+      var str = token.substring(1, token.length - 1);
+      var id = getConstantId(str);
+      bytes.push(OpCode.PUSH_CONST);
+      bytes.push(id);
+    }
+    else {
+      // It's a Variable
       bytes.push(OpCode.GET_VAR);
       bytes.push(getVarId(token));
     }
@@ -272,6 +215,15 @@ class BytemodCompiler {
     return newId;
   }
 
+  // Function for adding or retrieving variables from constants.
+  function getConstantId(value:Dynamic):Int {
+    for (i in 0...constants.length) {
+      if (constants[i] == value) return i;
+    }
+    constants.push(value);
+    return constants.length - 1;
+  }
+
   /**
    * Helper function for tokenizing the contents of a string.
    *
@@ -279,17 +231,24 @@ class BytemodCompiler {
    * @return An array of tokens
    */
   public static function tokenize(code:String):Array<Token> {
+    var commentRegex:EReg = ~/"[^"]*"|(\/\/[^\n]*)|(\/\*[\s\S]*?\*\/)/g;
+    code = commentRegex.map(code, (e) -> {
+      var match = e.matched(0);
+      if (match.startsWith('"')) return match; // Keep strings
+      return ""; // Replace comments with nothing
+    });
+
     var tokens = [];
     var lines = code.split("\n");
 
-    var r:EReg = ~/([0-9]+|[a-zA-Z_.]+|==|<=|>=|<|>|\+|\-|\*|\/|[\(\)\{\};=,])/g;
+    var r:EReg = ~/"[^"]*"|[0-9.]+|[a-zA-Z_.]+|==|<=|>=|<|>|is|\+|\-|\*|\/|[\(\)\{\};=,]/g;
 
     for (i in 0...lines.length) {
       var lineText = lines[i];
       var pos = 0;
       while (r.matchSub(lineText, pos)) {
-        var match = r.matched(1);
-        tokens.push({ text: match, line: i + 1 }); // i + 1 because lines start at 1
+        var match = r.matched(0);
+        tokens.push({ text: match, line: i + 1 });
         var p = r.matchedPos();
         pos = p.pos + p.len;
       }
@@ -299,4 +258,4 @@ class BytemodCompiler {
 }
 
 typedef Token = { text:String, line:Int };
-typedef CompileResult = {bytecode:Array<Int>, functions:Map<String, Array<Int>>, nativeSymbols:Array<String>}
+typedef CompileResult = {bytecode:Array<Int>, constants:Array<Dynamic>, functions:Map<String, Array<Int>>, nativeSymbols:Array<String>, variableMap:Map<String, Int>}

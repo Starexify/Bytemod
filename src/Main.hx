@@ -1,9 +1,10 @@
 import bytemod.Bytemod;
 import bytemod.BytemodPrinter;
-import haxe.Timer;
 
 class Main {
   static function main() {
+    var _ = haxe.Timer;
+    var _ = TestClass;
     Bytemod.init();
     //Bytemod.scriptCache.get("test.hx");
 //    var startVM = Timer.stamp();
@@ -11,7 +12,7 @@ class Main {
 //    var endVM = Timer.stamp();
 //    trace('Bytemod VM: ' + (endVM - startVM) + 's');
 
-//    BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("testFunc"));
+    BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("testFunc"));
 
     // VM
 /*    var startVM = Timer.stamp();
@@ -27,4 +28,8 @@ class Main {
     trace('Bytemod VM: ' + (endVM - startVM) + 's');
     trace('Native Haxe: ' + (endNative - startNative) + 's');*/
   }
+}
+
+class TestClass {
+
 }

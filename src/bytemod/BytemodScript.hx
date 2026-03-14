@@ -19,7 +19,7 @@ class BytemodScript {
     vm.symbols = result.nativeSymbols;
     this.functions = result.functions;
     this.vm.varCounter = compiler.varCounter;
-    this.vm.registerNative("haxe.Timer.stamp", haxe.Timer.stamp);
+    this.vm.constants = compiler.constants;
   }
 
   public function callFunction(funcName:String):Void {

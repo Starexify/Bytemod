@@ -18,7 +18,7 @@ class BytemodPrinter {
 
       // Some opcodes have "arguments" following them in the array
       switch (op) {
-        case PUSH_INT | GET_VAR | SET_VAR | JUMP_IF_FALSE | JUMP:
+        case PUSH_CONST | GET_VAR | SET_VAR:
           var arg = code[pc++];
           output += ' ($arg)';
         case PRINT:

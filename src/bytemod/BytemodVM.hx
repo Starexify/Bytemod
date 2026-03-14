@@ -3,14 +3,20 @@ package bytemod;
 import haxe.ds.Vector;
 
 class BytemodVM {
+  public var constants:Array<Dynamic> = [];
   public var symbols:Array<String> = [];
-  public var memory:Vector<Float>;
   public var varCounter:Int = 0;
 
-  public var nativeRegistry:Map<String, Dynamic> = new Map();
+  public var memory:Vector<Float>;
 
-  public function registerNative(name:String, func:Dynamic) {
-    nativeRegistry.set(name, func);
+  public var heap:Map<Int, Dynamic> = new Map();
+  private var heapCounter:Int = 0;
+
+  public var globals:Map<String, Dynamic> = new Map();
+  public function registerClass(name:String, obj:Dynamic) {
+    var id = heapCounter++;
+    heap.set(id, obj);
+    globals.set(name, id);
   }
 
   public function new() {}
@@ -23,24 +29,41 @@ class BytemodVM {
       for(i in 0...varCounter) memory[i] = 0;
     }
 
-    var pc = 0;
-    var stack = new Vector<Float>(256);
-    var sp = 0;
-    var len = bytecode.length;
+    var pc:Int = 0;
+    var stack:Vector<Dynamic> = new Vector<Dynamic>(256);
+    var sp:Int = 0;
+    var len:Int = bytecode.length;
 
     trace('--- STARTING EXECUTION ---');
     while (pc < len) {
       var op:OpCode = bytecode[pc++];
 
       switch (op) {
-        case PUSH_INT:
-          stack[sp++] = bytecode[pc++];
+        case PUSH_CONST:
+          var id = bytecode[pc++];
+          stack[sp++] = constants[id];
 
         case GET_VAR:
           stack[sp++] = memory[bytecode[pc++]];
 
         case SET_VAR:
           memory[bytecode[pc++]] = stack[--sp];
+
+        case NEW:
+          var classPath = stack[--sp];
+          var cls = Type.resolveClass(classPath);
+
+          if (cls != null) {
+            var instance = Type.createInstance(cls, []);
+
+            // Put the new instance in the heap!
+            var id = heapCounter++;
+            heap.set(id, instance);
+            stack[sp++] = id; // Push the NEW ID to the stack
+          } else {
+            trace("Error: Could not resolve " + classPath);
+            stack[sp++] = 0;
+          }
 
         case ADD:
           var b = stack[--sp];
@@ -62,17 +85,16 @@ class BytemodVM {
           var a = stack[--sp];
           stack[sp++] = a / b;
 
-        case LT:
-          var b = stack[--sp];
-          var a = stack[--sp];
-          stack[sp++] = (a < b) ? 1 : 0;
+        case IS:
+          var target = stack[--sp];
+          var value = stack[--sp];
 
-        case JUMP_IF_FALSE:
-          var target = bytecode[pc++];
-          if (stack[--sp] == 0) pc = target;
+          var classObj:Dynamic = heap.exists(Std.int(target)) ? heap.get(Std.int(target)) : target;
+          var actualValue:Dynamic = heap.exists(Std.int(value)) ? heap.get(Std.int(value)) : value;
 
-        case JUMP:
-          pc = bytecode[pc++];
+          var isMatch = Std.isOfType(actualValue, classObj);
+
+          stack[sp++] = isMatch ? 1 : 0;
 
         case PRINT:
           var argCount = bytecode[pc++];
