@@ -3,6 +3,7 @@ package bytemod;
 import bytemod.BytemodCompiler;
 
 class BytemodScript {
+  public var scriptName:String;
   public var fileName:String;
   public var vm:BytemodVM;
 
@@ -15,8 +16,10 @@ class BytemodScript {
     final compiler = new BytemodCompiler();
     final result:CompileResult = compiler.compile(BytemodCompiler.tokenize(code));
 
+    vm.symbols = result.nativeSymbols;
     this.functions = result.functions;
     this.vm.varCounter = compiler.varCounter;
+    this.vm.registerNative("haxe.Timer.stamp", haxe.Timer.stamp);
   }
 
   public function callFunction(funcName:String):Void {

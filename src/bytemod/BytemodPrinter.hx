@@ -1,7 +1,7 @@
 package bytemod;
 
 class BytemodPrinter {
-  public static function disassemble(code:Array<Int>) {
+  public static function disassemble(code:Array<Int>):Void {
     if (code == null) {
       trace('No bytecode found.');
       return;
@@ -21,6 +21,14 @@ class BytemodPrinter {
         case PUSH_INT | GET_VAR | SET_VAR | JUMP_IF_FALSE | JUMP:
           var arg = code[pc++];
           output += ' ($arg)';
+        case PRINT:
+          var count = code[pc++];
+          var line = code[pc++];
+          output += ' (args: $count, line: $line)';
+        case CALL_NATIVE:
+          var id = code[pc++];
+          output += ' ($id)';
+
         default: // Math ops like ADD, LT, etc., don't have extra arguments
       }
       trace(output);

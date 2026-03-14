@@ -6,45 +6,77 @@ class BytemodCompiler {
   public var variableMap:Map<String, Int> = new Map();
   public var varCounter:Int = 0;
 
-  var tokens:Array<String>;
+  var tokens:Array<Token>;
   var i:Int = 0;
 
   public function new() {}
 
-  function consume() return tokens[i++];
+  function consume():String return tokens[i++].text;
 
-  function peek() return tokens[i];
+  function peek():String return tokens[i].text;
 
-  function parseStatement(bytes:Array<Int>) {
+  function lastLine():Int return tokens[i - 1].line;
+
+  function parseStatement(bytes:Array<Int>):Void {
     var name = consume();
+
+    // If the modder wrote "var i = 10", name is currently "var".
+    // We need the ACTUAL name.
+    if (name == "var") {
+      name = consume(); // Now name is "k"
+    }
+
     if (consume() == "=") {
-      var next = peek();
-
-      // If it's a simple assignment: i = 10;
-      if (tokens[i + 1] == ";") {
-        bytes.push(OpCode.PUSH_INT);
-        bytes.push(Std.parseInt(consume()));
-        consume(); // ";"
-      }
-        // If it's math: i = i + 1;
-      else {
-        var leftHand = consume(); // "i"
-        var op = consume(); // "+"
-        var rightHand = consume(); // "1"
-        consume(); // ";"
-
-        bytes.push(OpCode.GET_VAR);
-        bytes.push(getVarId(leftHand));
-        bytes.push(OpCode.PUSH_INT);
-        bytes.push(Std.parseInt(rightHand));
-        bytes.push(OpCode.ADD);
-      }
+      parseExpression(bytes);
+      consume(); // ";"
 
       bytes.push(OpCode.SET_VAR);
       bytes.push(getVarId(name));
     }
   }
 
+  public var nativeSymbols:Array<String> = [];
+  function getNativeId(path:String):Int {
+    var id = nativeSymbols.indexOf(path);
+    if (id == -1) {
+      id = nativeSymbols.length;
+      nativeSymbols.push(path);
+    }
+    return id;
+  }
+
+  function parseExpression(bytes:Array<Int>) {
+    var firstToken = consume();
+    var next = peek();
+
+    if (next == "(") {
+      consume(); // "("
+      // For now, let's assume 0 arguments for stamp()
+      consume(); // ")"
+
+      bytes.push(OpCode.CALL_NATIVE);
+      bytes.push(getNativeId(firstToken));
+    } else {
+      pushValue(bytes, firstToken);
+    }
+
+    while (true) {
+      var op = peek();
+      if (op == "+" || op == "-" || op == "*" || op == "/") {
+        consume(); // eat the operator
+        var secondToken = consume();
+        pushValue(bytes, secondToken);
+
+        if (op == "+") bytes.push(OpCode.ADD);
+        else if (op == "-") bytes.push(OpCode.SUB);
+        else if (op == "*") bytes.push(OpCode.MUL);
+        else if (op == "/") bytes.push(OpCode.DIV);
+      }
+      else {
+        break;
+      }
+    }
+  }
 
   /**
    * Function that compiles tokens into bytecode.
@@ -52,12 +84,13 @@ class BytemodCompiler {
    * @param tokens The tokens of a script
    * @return The compiled bytecode
    */
-  public function compile(tokens:Array<String>):CompileResult {
+  public function compile(tokens:Array<Token>):CompileResult {
     this.tokens = tokens;
     this.i = 0;
     var result:CompileResult = {
-      main: [],
-      functions: new Map()
+      bytecode: [],
+      functions: new Map(),
+      nativeSymbols: this.nativeSymbols
     };
 
     while (i < tokens.length) {
@@ -77,7 +110,7 @@ class BytemodCompiler {
         }
         result.functions.set(funcName, funcBytes);
       }
-      else parseExpr(result.main);
+      else parseExpr(result.bytecode);
     }
 
     // No longer needed, free memory
@@ -87,7 +120,7 @@ class BytemodCompiler {
     return result;
   }
 
-  function parseExpr(bytes:Array<Int>) {
+  function parseExpr(bytes:Array<Int>):Void {
     var t = consume();
 
     if (t == "if") {
@@ -98,23 +131,8 @@ class BytemodCompiler {
         consume(); // ")"
 
         // Push condition to bytecode
-        var leftNum = Std.parseInt(left);
-        if (leftNum != null) {
-          bytes.push(OpCode.PUSH_INT);
-          bytes.push(leftNum);
-        } else {
-          bytes.push(OpCode.GET_VAR);
-          bytes.push(getVarId(left));
-        }
-
-        var rightNum = Std.parseInt(right);
-        if (rightNum != null) {
-          bytes.push(OpCode.PUSH_INT);
-          bytes.push(rightNum);
-        } else {
-          bytes.push(OpCode.GET_VAR);
-          bytes.push(getVarId(right));
-        }
+        pushValue(bytes, left);
+        pushValue(bytes, right);
 
         bytes.push(OpCode.LT);
       }
@@ -208,9 +226,38 @@ class BytemodCompiler {
     else if (t == "var" || t == ";") {
       return;
     }
+    else if (t == "trace") {
+      var lineNum = lastLine();
+      consume(); // skip "("
+
+      var argCount = 0;
+      while (peek() != ")") {
+        parseExpression(bytes);
+        argCount++;
+        if (peek() == ",") consume();
+      }
+      consume(); // ")"
+      consume(); // ";"
+
+      // Push the TRACE opcode followed by how many items to pop
+      bytes.push(OpCode.PRINT);
+      bytes.push(argCount);
+      bytes.push(lineNum);
+    }
     else {
       i--;
       parseStatement(bytes);
+    }
+  }
+
+  function pushValue(bytes:Array<Int>, token:String):Void {
+    var val = Std.parseInt(token);
+    if (val != null) {
+      bytes.push(OpCode.PUSH_INT);
+      bytes.push(val);
+    } else {
+      bytes.push(OpCode.GET_VAR);
+      bytes.push(getVarId(token));
     }
   }
 
@@ -231,17 +278,25 @@ class BytemodCompiler {
    * @param code The contents of the script
    * @return An array of tokens
    */
-  public static function tokenize(code:String):Array<String> {
-    var r:EReg = ~/([ \t\n\r]+|[0-9]+|[a-zA-Z_]+|==|<=|>=|<|>|\+|\-|\*|\/|[\(\)\{\};=])/g;
+  public static function tokenize(code:String):Array<Token> {
     var tokens = [];
+    var lines = code.split("\n");
 
-    while (r.match(code)) {
-      var token = r.matched(1).trim();
-      if (token != "") tokens.push(token);
-      code = r.matchedRight();
+    var r:EReg = ~/([0-9]+|[a-zA-Z_.]+|==|<=|>=|<|>|\+|\-|\*|\/|[\(\)\{\};=,])/g;
+
+    for (i in 0...lines.length) {
+      var lineText = lines[i];
+      var pos = 0;
+      while (r.matchSub(lineText, pos)) {
+        var match = r.matched(1);
+        tokens.push({ text: match, line: i + 1 }); // i + 1 because lines start at 1
+        var p = r.matchedPos();
+        pos = p.pos + p.len;
+      }
     }
     return tokens;
   }
 }
 
-typedef CompileResult = {main:Array<Int>, functions:Map<String, Array<Int>>}
+typedef Token = { text:String, line:Int };
+typedef CompileResult = {bytecode:Array<Int>, functions:Map<String, Array<Int>>, nativeSymbols:Array<String>}

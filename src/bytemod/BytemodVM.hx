@@ -3,8 +3,15 @@ package bytemod;
 import haxe.ds.Vector;
 
 class BytemodVM {
-  public var memory:Vector<Int>;
+  public var symbols:Array<String> = [];
+  public var memory:Vector<Float>;
   public var varCounter:Int = 0;
+
+  public var nativeRegistry:Map<String, Dynamic> = new Map();
+
+  public function registerNative(name:String, func:Dynamic) {
+    nativeRegistry.set(name, func);
+  }
 
   public function new() {}
 
@@ -12,12 +19,12 @@ class BytemodVM {
     if (bytecode == null) return;
 
     if (memory == null) {
-      memory = new Vector<Int>(varCounter);
+      memory = new Vector<Float>(varCounter);
       for(i in 0...varCounter) memory[i] = 0;
     }
 
     var pc = 0;
-    var stack = new Vector<Int>(256);
+    var stack = new Vector<Float>(256);
     var sp = 0;
     var len = bytecode.length;
 
@@ -40,6 +47,21 @@ class BytemodVM {
           var a = stack[--sp];
           stack[sp++] = a + b;
 
+        case SUB:
+          var b = stack[--sp];
+          var a = stack[--sp];
+          stack[sp++] = a - b;
+
+        case MUL:
+          var b = stack[--sp];
+          var a = stack[--sp];
+          stack[sp++] = a * b;
+
+        case DIV:
+          var b = stack[--sp];
+          var a = stack[--sp];
+          stack[sp++] = a / b;
+
         case LT:
           var b = stack[--sp];
           var a = stack[--sp];
@@ -51,6 +73,35 @@ class BytemodVM {
 
         case JUMP:
           pc = bytecode[pc++];
+
+        case PRINT:
+          var argCount = bytecode[pc++];
+          var lineNum = bytecode[pc++];
+
+          var args = [];
+          for (i in 0...argCount) {
+            args.push(stack[--sp]);
+          }
+          args.reverse();
+
+          // Use Reflect to call Haxe's trace with the array of arguments
+          haxe.Log.trace(args.join(", "), { fileName: "testTwo.hx", lineNumber: lineNum, className: "Bytemod", methodName: "script" });
+
+        case CALL_NATIVE:
+          var symbolId = bytecode[pc++];
+          var path = symbols[symbolId];
+
+          var parts = path.split(".");
+          var methodName = parts.pop();
+          var className = parts.join(".");
+
+          var cls = Type.resolveClass(className);
+          if (cls != null) {
+            var result = Reflect.callMethod(cls, Reflect.field(cls, methodName), []);
+            stack[sp++] = result;
+          } else {
+            trace("Error: Could not resolve class " + className);
+          }
 
         default:
           trace("Unknown OpCode: " + OpCode.toString(op));
