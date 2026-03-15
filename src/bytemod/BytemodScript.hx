@@ -16,6 +16,7 @@ class BytemodScript {
     final compiler = new BytemodCompiler();
     final result:CompileResult = compiler.compile(BytemodCompiler.tokenize(code));
 
+    trace(compiler.variableMap);
     this.functions = result.functions;
 
     vm.symbols = compiler.nativeSymbols;

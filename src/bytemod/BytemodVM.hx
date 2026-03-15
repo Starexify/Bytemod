@@ -5,22 +5,19 @@ import haxe.ds.Vector;
 using StringTools;
 
 class BytemodVM {
+  // TODO: Add the ability to use native functions without ts
+  public final nativeFunctions:Map<String, Dynamic> = ["haxe.Timer.stamp" => haxe.Timer.stamp];
+
   public var constants:Array<Dynamic> = [];
   public var symbols:Array<String> = [];
   public var varCounter:Int = 0;
 
-  // TODO: Add the ability to use native functions without ts
-  public var nativeFunctions:Map<String, Dynamic> = [
-    "haxe.Timer.stamp" => haxe.Timer.stamp,
-    "Math.random" => Math.random,
-    "Math.floor" => Math.floor
-  ];
-
   public var memory:Vector<Float>;
-
-  public var globalHeap:Map<Int, Dynamic> = new Map();
   public var heap:Map<Int, Dynamic> = new Map();
+  public var globalHeap:Map<Int, Dynamic> = new Map();
   private var heapCounter:Int = 0;
+
+  public function new() {}
 
   public function storeInHeap(obj:Dynamic):Int {
     var id = heapCounter++;
@@ -28,10 +25,20 @@ class BytemodVM {
     return id;
   }
 
-  public function new() {}
+  // Variables used in execution
+  var bytecode:Array<Int> = [];
+  var stack:Vector<Float> = new Vector<Float>(256);
+  var sp:Int = 0;
+  var pc:Int = 0;
+  inline function read():Int return bytecode[pc++];
+  inline function push(val:Float):Void stack[sp++] = val;
+  inline function pop():Float return stack[--sp];
 
-  public function execute(bytecode:Array<Int>) {
+  public function execute(code:Array<Int>) {
+    this.bytecode = code;
     if (bytecode == null) return;
+    this.pc = 0;
+    this.sp = 0;
 
     if (memory == null) {
       memory = new Vector<Float>(varCounter);
@@ -39,26 +46,17 @@ class BytemodVM {
 
       this.heapCounter = varCounter;
     }
+
     var snapshotCounter = this.heapCounter;
 
-    var pc:Int = 0;
-    var stack:Vector<Dynamic> = new Vector<Dynamic>(256);
-    var sp:Int = 0;
-    var len:Int = bytecode.length;
-
     Sys.println('--- STARTING EXECUTION ---');
-    while (pc < len) {
-      var op:OpCode = bytecode[pc++];
+    while (pc < bytecode.length) {
+      var op:OpCode = read();
 
       switch (op) {
-        case PUSH_CONST:
-          var id = bytecode[pc++];
-          stack[sp++] = constants[id];
-
+        case PUSH_CONST: push(constants[read()]);
         case PUSH_STR:
-          var constId = bytecode[pc++];
-          var str = constants[constId];
-
+          var str = constants[read()];
           var foundId:Int = -1;
           for (key in heap.keys()) {
             if (heap.get(key) == str) {
@@ -66,46 +64,28 @@ class BytemodVM {
               break;
             }
           }
-          if (foundId != -1) {
-            stack[sp++] = foundId;
-          } else {
-            stack[sp++] = storeInHeap(str);
-          }
+          if (foundId != -1) push(foundId);
+          else push(storeInHeap(str));
 
-        case GET_VAR:
-          stack[sp++] = memory[bytecode[pc++]];
-
-        case SET_VAR:
-          var slot = bytecode[pc++];
-          memory[slot] = stack[--sp];
+        case GET_VAR: push(memory[read()]);
+        case SET_VAR: memory[read()] = pop();
 
         case GET_PROPERTY:
-          var constId = bytecode[pc++];
-          var fieldName:String = constants[constId];
-          var objectId = stack[--sp];
-
-          var instance = resolveObject(objectId);
+          var fieldName:String = constants[read()];
+          var instance = resolveObject(pop());
           if (instance != null) {
             var val = Reflect.getProperty(instance, fieldName);
-            if (val is Float || val is Int) {
-              stack[sp++] = val;
-            }
-            else {
-              stack[sp++] = storeInHeap(val);
-            }
+            push((val is Float || val is Int) ? val : storeInHeap(val));
           }
           else {
             trace("Error: Accessing property " + fieldName + " on null");
-            stack[sp++] = 0;
+            push(0);
           }
 
         case SET_PROPERTY:
-          var constId = bytecode[pc++];
-          var fieldName:String = constants[constId];
-          var val = stack[--sp];
-          var objectId = stack[--sp];
-
-          var instance = resolveObject(objectId);
+          var fieldName:String = constants[read()];
+          var val = pop();
+          var instance = resolveObject(pop());
           if (instance != null) {
             var value = heap.exists(Std.int(val)) ? heap.get(Std.int(val)) : val;
             try {
@@ -117,91 +97,88 @@ class BytemodVM {
           }
 
         case NEW:
-          var constId = bytecode[pc++];
-          var className:String = constants[constId];
+          var className:String = constants[read()];
           var cls = resolveClassSafe(className);
 
           // Set in heap
           if (cls != null) {
             var instance = Type.createInstance(cls, []);
-            stack[sp++] = storeInHeap(instance);
+            push(storeInHeap(instance));
           } else {
             trace("Error: Class not found -> " + className);
-            stack[sp++] = 0;
+            push(0);
           }
 
         case LT:
-          var b:Float = stack[--sp];
-          var a:Float = stack[--sp];
-          stack[sp++] = (a < b) ? 1 : 0;
+          var b:Float = pop();
+          var a:Float = pop();
+          push((a < b) ? 1 : 0);
 
         case ADD:
-          var b:Dynamic = stack[--sp];
-          var a:Dynamic = stack[--sp];
-          if (a is String || b is String) {
-            stack[sp++] = Std.string(a) + Std.string(b);
-          } else {
-            stack[sp++] = (a : Float) + (b : Float);
-          }
+          var b = pop();
+          var a = pop();
+
+          var valA = heap.get(Std.int(a));
+          var valB = heap.get(Std.int(b));
+
+          if (valA is String || valB is String)) {
+            var strA = (valA != null) ? Std.string(valA) : Std.string(a);
+            var strB = (valB != null) ? Std.string(valB) : Std.string(b);
+
+            push(storeInHeap(strA + strB));
+          } else push(a + b);
 
         case SUB:
-          var b:Float = stack[--sp];
-          var a:Float = stack[--sp];
-          stack[sp++] = a - b;
+          var b:Float = pop();
+          var a:Float = pop();
+          push(a - b);
 
         case MUL:
-          var b:Float = stack[--sp];
-          var a:Float = stack[--sp];
-          stack[sp++] = a * b;
+          var b:Float = pop();
+          var a:Float = pop();
+          push(a * b);
 
         case DIV:
-          var b:Float = stack[--sp];
-          var a:Float = stack[--sp];
-          stack[sp++] = a / b;
+          var b:Float = pop();
+          var a:Float = pop();
+          push(a / b);
 
         case IS:
-          var targetId = stack[--sp];
-          var valueId = stack[--sp];
+          var targetId = pop();
+          var valueId = pop();
 
           var actualValue:Dynamic = heap.exists(Std.int(valueId)) ? heap.get(Std.int(valueId)) : valueId;
           var targetObj:Dynamic = heap.exists(Std.int(targetId)) ? heap.get(Std.int(targetId)) : targetId;
 
           var isMatch:Bool = false;
 
-          if (Std.isOfType(targetObj, String)) {
+          if (targetObj is String) {
             var cls = resolveClassSafe(targetObj);
-            if (cls != null) {
-              isMatch = Std.isOfType(actualValue, cls);
-            } else {
-              trace("Error: 'is' check failed - Class not found: " + targetObj);
-            }
+            if (cls != null) isMatch = Std.isOfType(actualValue, cls);
+            else trace("Error: 'is' check failed - Class not found: " + targetObj);
           }
-          else if (Std.isOfType(targetObj, Class)) {
+          else if (targetObj is Class) {
             isMatch = Std.isOfType(actualValue, targetObj);
           }
           else {
             isMatch = Std.isOfType(actualValue, targetObj);
           }
+          push(isMatch ? 1 : 0);
 
-          stack[sp++] = isMatch ? 1.0 : 0.0;
-
-        case JUMP:
-          pc = bytecode[pc++];
+        case JUMP: pc = read();
 
         case JUMP_IF_FALSE:
-          var target = bytecode[pc++];
-          var condition = stack[--sp];
-          if (condition == 0 || condition == 0.0) {
-            pc = target;
-          }
+          var target = read();
+          var condition:Dynamic = pop();
+          if (condition == false || condition == 0 || condition == null) pc = target;
 
         case PRINT:
-          var argCount = bytecode[pc++];
-          var lineNum = bytecode[pc++];
+          var argCount = read();
+          var lineNum = read();
 
           var args = [];
           for (i in 0...argCount) {
-            var val = stack[--sp];
+            var val = pop();
             var id = Std.int(val);
             if (heap.exists(id)) args.push(heap.get(id));
             else args.push(val);
@@ -210,14 +187,14 @@ class BytemodVM {
           haxe.Log.trace(args.join(", "), { fileName: "testTwo.hx", lineNumber: lineNum, className: "Bytemod", methodName: "script" });
 
         case CALL_NATIVE:
-          var symbolId = bytecode[pc++];
-          var argCount = bytecode[pc++];
-          var path = symbols[symbolId];
+          var path = symbols[read()];
+          var argCount = read();
 
           if (nativeFunctions.exists(path)) {
             var func = nativeFunctions.get(path);
-            stack[sp++] = func();
-          } else {
+            push(func());
+          }
+          else {
 
             var parts = path.split(".");
             var methodName = parts.pop();
@@ -226,14 +203,12 @@ class BytemodVM {
             var cls = Type.resolveClass(className);
             if (cls != null) {
               var result = Reflect.callMethod(cls, Reflect.field(cls, methodName), []);
-              stack[sp++] = result;
-            } else {
-              trace("Error: Could not resolve class " + className);
+              push(result);
             }
+            else trace("Error: Could not resolve class " + className);
           }
 
-        default:
-          trace("Unknown OpCode: " + OpCode.toString(op));
+        default: trace("Unknown OpCode: " + OpCode.toString(op));
       }
     }
 

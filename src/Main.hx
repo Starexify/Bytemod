@@ -4,37 +4,28 @@ import bytemod.BytemodPrinter;
 class Main {
   static function main() {
     Bytemod.init();
-    //Bytemod.scriptCache.get("test.hx");
 
     //while (true) {
       BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("otherFunc"));
       Bytemod.scriptCache.get("testTwo.hx").callFunction("otherFunc");
     //}
-
-//    BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("testFunc"));
-//    Bytemod.scriptCache.get("testTwo.hx").callFunction("testFunc");
-//
-//    BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("otherFunc"));
-//    Bytemod.scriptCache.get("testTwo.hx").callFunction("otherFunc");
-
-//    var startVM = Timer.stamp();
-//    var endVM = Timer.stamp();
-//    trace('Bytemod VM: ' + (endVM - startVM) + 's');
-
-
-    // VM
-/*    var startVM = Timer.stamp();
-    Bytemod.scriptCache.get("testTwo.hx").callFunction("testFunc");
-    var endVM = Timer.stamp();
-
     // NATIVE HAXE
-    var startNative = Timer.stamp();
-    testFunc();
-    var endNative = Timer.stamp();
+    //otherFunc();
+  }
 
-    trace('--- PERFORMANCE TEST --');
-    trace('Bytemod VM: ' + (endVM - startVM) + 's');
-    trace('Native Haxe: ' + (endNative - startNative) + 's');*/
+  static function otherFunc() {
+    var testClass:TestClass = new TestClass();
+    trace(testClass);
+    @:privateAccess trace(testClass.a);
+
+    // Testing while loop
+    var start = haxe.Timer.stamp();
+    var i = 0;
+    while (i < 10000) {
+      i = i + 1;
+    }
+    var end = haxe.Timer.stamp();
+    trace(end - start);
   }
 }
 
@@ -48,4 +39,6 @@ class TestClass {
   }
 
   public function toString() return "I am a TestClass instance!";
+
+  public function new() {}
 }

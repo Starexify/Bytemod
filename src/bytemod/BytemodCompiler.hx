@@ -156,10 +156,7 @@ class BytemodCompiler {
         else if (op == "-") bytes.push(OpCode.SUB);
         else if (op == "*") bytes.push(OpCode.MUL);
         else if (op == "/") bytes.push(OpCode.DIV);
-        else if (op == "<") {
-          trace("COMPILER: Pushing LT Opcode");
-          bytes.push(OpCode.LT);
-        }
+        else if (op == "<") bytes.push(OpCode.LT);
       }
       else if (op == "is") {
         consume(); // eat "is"
@@ -232,17 +229,12 @@ class BytemodCompiler {
 
     if (t == "var" || t == ";") return;
     else if (t == "while") {
-      trace("Before parseExpr");
-      BytemodPrinter.disassemble(bytes);
       var loopStart = bytes.length;
       if (peek() == "(") {
         consume(); // eat "("
         parseExpression(bytes);
         if (peek() == ")") consume(); // eat ")"
       }
-      trace("After parseExpr");
-      BytemodPrinter.disassemble(bytes);
-      trace(bytes);
 
       bytes.push(OpCode.JUMP_IF_FALSE);
       var jumpToExitIdx = bytes.length;
