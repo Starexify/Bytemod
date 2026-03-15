@@ -3,9 +3,15 @@ package bytemod;
 using StringTools;
 
 class BytemodCompiler {
-  public var variableMap:Map<String, Int> = new Map();
+  public var varMap:Map<String, Int> = new Map();
   public var varCounter:Int = 0;
+  public var staticMap:Map<String, Int> = new Map();
+  public var staticCounter:Int = 0;
   public var constants:Array<Dynamic> = [];
+
+  var hasError:Bool = false;
+
+  public var finalIndexes:Map<Int, Bool> = new Map();
 
   var tokens:Array<Token>;
   var i:Int = 0;
@@ -24,27 +30,12 @@ class BytemodCompiler {
 
   function lastLine():Int return tokens[i - 1].line;
 
-  function parseStatement(bytes:Array<Int>):Void {
+  function parseStatement(bytes:Array<Int>, isFinal:Bool = false):Void {
     var name = consume();
-
     if (name == "var") name = consume(); // eat var name
 
-    // Handling Types
-    if (peek() == ":") {
-      consume(); // eat ":"
-      consume(); // eat the type name (e.g., "Int")
-
-      while (peek() == "." || peek() == "<") {
-        if (peek() == "<") {
-          // This is a simple way to skip generics;
-          // you'd need a loop to find the matching ">" for real ones
-          while (consume() != ">") {}
-        } else {
-          consume(); // eat "."
-          consume(); // eat next part
-        }
-      }
-    }
+    // Handling Types (TODO: later maybe)
+    if (peek() == ":") {}
 
     // Handling fields
     if (peek() == ".") {
@@ -74,11 +65,32 @@ class BytemodCompiler {
     // Handling normal variable initialization
     if (peek() == "=") {
       consume(); // eat "="
-      parseExpression(bytes);
-      if (peek() == ";") consume(); // eat ";"
 
-      bytes.push(OpCode.SET_VAR);
-      bytes.push(getVarId(name));
+      // 1. Get the ID first so we can check it
+      var id = -1;
+      var isStatic = staticMap.exists(name);
+
+      if (!isStatic) {
+        id = getVarId(name);
+        // CHECK: If it's already in finalIndexes, this is an illegal re-assignment
+        if (finalIndexes.exists(id)) {
+          error("Cannot reassign final variable " + name);
+        }
+
+        // If this is the declaration (e.g., final j = 1), mark it now
+        if (isFinal) finalIndexes.set(id, true);
+      }
+
+      parseExpression(bytes);
+      if (peek() == ";") consume();
+
+      if (isStatic) {
+        bytes.push(OpCode.SET_STATIC);
+        bytes.push(staticMap.get(name));
+      } else {
+        bytes.push(OpCode.SET_VAR);
+        bytes.push(id);
+      }
       return;
     }
   }
@@ -185,7 +197,8 @@ class BytemodCompiler {
    * @return The compiled bytecode
    */
   public function compile(tokens:Array<Token>):CompileResult {
-    this.variableMap = new Map();
+    this.hasError = false;
+    this.varMap = new Map();
     this.varCounter = 0;
     this.constants = [];
     this.nativeSymbols = [];
@@ -194,7 +207,8 @@ class BytemodCompiler {
     this.i = 0;
     var result:CompileResult = {
       bytecode: [],
-      functions: new Map()
+      functions: new Map(),
+      success: !hasError
     };
 
     while (i < tokens.length) {
@@ -221,14 +235,34 @@ class BytemodCompiler {
     this.tokens = null;
     this.i = 0;
 
-    return result;
+    return {
+      bytecode: hasError ? [] : result.bytecode,
+      functions: hasError ? new Map() : result.functions,
+      success: !hasError
+    };
   }
 
   function parseExpr(bytes:Array<Int>):Void {
-    var t = consume();
+    var t = peek();
 
-    if (t == "var" || t == ";") return;
-    else if (t == "while") {
+    if (t == "static") {
+      consume(); // eat "static"
+      parseStaticDeclaration(bytes);
+      if (peek() == ";") consume();
+      return;
+    }
+
+    if (t == "final") {
+      consume(); // eat "final"
+      parseStatement(bytes, true); // Pass 'true' to mark it final
+      if (peek() == ";") consume();
+      return;
+    }
+
+    t = consume();
+    if (t == ";") return;
+
+    if (t == "while") {
       var loopStart = bytes.length;
       if (peek() == "(") {
         consume(); // eat "("
@@ -279,6 +313,32 @@ class BytemodCompiler {
     }
   }
 
+  function parseStaticDeclaration(bytes:Array<Int>):Void {
+    if (peek() == "var") consume(); // eat "var" if present
+    var name = consume();
+    var id = getStaticId(name);
+
+    // Handling Types (TODO: later maybe)
+    if (peek() == ":") {}
+
+    if (peek() == "=") {
+      consume(); // eat "="
+
+      bytes.push(OpCode.GET_STATIC);
+      bytes.push(id);
+
+      bytes.push(OpCode.JUMP_IF_TRUE);
+      var jumpTargetIdx = bytes.length;
+      bytes.push(0);
+
+      parseExpression(bytes);
+      bytes.push(OpCode.SET_STATIC);
+      bytes.push(id);
+
+      bytes[jumpTargetIdx] = bytes.length;
+    }
+  }
+
   function pushValue(bytes:Array<Int>, token:String):Void {
     var valFloat = Std.parseFloat(token);
 
@@ -296,8 +356,21 @@ class BytemodCompiler {
     else {
       // Variable
       var parts = token.split(".");
-      bytes.push(OpCode.GET_VAR);
-      bytes.push(getVarId(parts[0]));
+      var name = parts[0];
+
+      if (varMap.exists(name)) {
+        bytes.push(OpCode.GET_VAR);
+        bytes.push(varMap.get(name));
+      }
+      else if (staticMap.exists(name)) {
+        bytes.push(OpCode.GET_STATIC);
+        bytes.push(staticMap.get(name));
+      }
+      else {
+        // If it doesn't exist yet, assume it's a new local variable or handle errors maybe?
+        bytes.push(OpCode.GET_VAR);
+        bytes.push(getVarId(name));
+      }
 
       // Property
       for (j in 1...parts.length) {
@@ -307,17 +380,25 @@ class BytemodCompiler {
     }
   }
 
-  // Function for adding or retrieving variables from the variableMap.
+  // Function for adding or retrieving variables from the varMap.
   function getVarId(varName:String):Int {
-    if (variableMap.exists(varName)) return variableMap.get(varName);
+    if (varMap.exists(varName)) return varMap.get(varName);
 
     var newId = varCounter;
-    variableMap.set(varName, newId);
+    varMap.set(varName, newId);
 
     // Sys.println('Variable Registered: "$varName" at Index $newId');
 
     varCounter++;
     return newId;
+  }
+
+  // Function for adding or retrieving statics from staticMap.
+  function getStaticId(name:String):Int {
+    if (staticMap.exists(name)) return staticMap.get(name);
+    var id = staticCounter++;
+    staticMap.set(name, id);
+    return id;
   }
 
   // Function for adding or retrieving variables from constants.
@@ -360,7 +441,12 @@ class BytemodCompiler {
     }
     return tokens;
   }
+
+  function error(message:String):Void {
+    haxe.Log.trace('Compile Error: $message', { fileName: "testTwo.hx", lineNumber: lastLine(), className: "Bytemod", methodName: "compile" });
+    hasError = true;
+  }
 }
 
 typedef Token = {text:String, line:Int};
-typedef CompileResult = {bytecode:Array<Int>, functions:Map<String, Array<Int>>}
+typedef CompileResult = {bytecode:Array<Int>, functions:Map<String, Array<Int>>, success:Bool}

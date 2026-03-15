@@ -8,6 +8,7 @@ class Main {
     //while (true) {
       BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("otherFunc"));
       Bytemod.scriptCache.get("testTwo.hx").callFunction("otherFunc");
+      Bytemod.scriptCache.get("testTwo.hx").callFunction("otherFunc");
     //}
     // NATIVE HAXE
     //otherFunc();

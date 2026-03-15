@@ -15,14 +15,27 @@ class BytemodVM {
   public var memory:Vector<Float>;
   public var heap:Map<Int, Dynamic> = new Map();
   public var globalHeap:Map<Int, Dynamic> = new Map();
+  private var stringPool:Map<String, Int> = new Map();
   private var heapCounter:Int = 0;
 
   public function new() {}
 
   public function storeInHeap(obj:Dynamic):Int {
+    if (obj is String && stringPool.exists(obj)) return -(stringPool.get(obj) + 1);
+
     var id = heapCounter++;
     heap.set(id, obj);
-    return id;
+    if (obj is String) stringPool.set(obj, id);
+
+    return -(id + 1);
+  }
+
+  public function resolveObject(val:Float):Null<Dynamic> {
+    if (val < 0) {
+      var id = Std.int(-val) - 1;
+      return heap.get(id);
+    }
+    return null;
   }
 
   // Variables used in execution
@@ -43,7 +56,6 @@ class BytemodVM {
     if (memory == null) {
       memory = new Vector<Float>(varCounter);
       for (i in 0...varCounter) memory[i] = 0;
-
       this.heapCounter = varCounter;
     }
 
@@ -54,21 +66,20 @@ class BytemodVM {
       var op:OpCode = read();
 
       switch (op) {
-        case PUSH_CONST: push(constants[read()]);
-        case PUSH_STR:
-          var str = constants[read()];
-          var foundId:Int = -1;
-          for (key in heap.keys()) {
-            if (heap.get(key) == str) {
-              foundId = key;
-              break;
-            }
-          }
-          if (foundId != -1) push(foundId);
-          else push(storeInHeap(str));
+        case PUSH_CONST:
+          var val = constants[read()];
+          push((val is String) ? storeInHeap(val) : val);
 
+        case PUSH_STR: push(storeInHeap(constants[read()]));
         case GET_VAR: push(memory[read()]);
         case SET_VAR: memory[read()] = pop();
+
+        case GET_STATIC:
+          var staticId = read();
+          if (globalHeap.exists(staticId)) push(globalHeap.get(staticId));
+          else push(0);
+
+        case SET_STATIC: globalHeap.set(read(), pop());
 
         case GET_PROPERTY:
           var fieldName:String = constants[read()];
@@ -118,13 +129,12 @@ class BytemodVM {
           var b = pop();
           var a = pop();
 
-          var valA = heap.get(Std.int(a));
-          var valB = heap.get(Std.int(b));
+          var valA = resolveObject(a);
+          var valB = resolveObject(b);
 
-          if (valA is String || valB is String)) {
+          if (valA is String || valB is String) {
             var strA = (valA != null) ? Std.string(valA) : Std.string(a);
             var strB = (valB != null) ? Std.string(valB) : Std.string(b);
-
             push(storeInHeap(strA + strB));
           } else push(a + b);
 
@@ -167,24 +177,29 @@ class BytemodVM {
 
         case JUMP: pc = read();
 
+        case JUMP_IF_TRUE:
+          var target = read();
+          var cond:Dynamic = pop();
+          if (cond != 0 && cond != null && cond != false) pc = target;
+
         case JUMP_IF_FALSE:
           var target = read();
-          var condition:Dynamic = pop();
-          if (condition == false || condition == 0 || condition == null) pc = target;
+          var cond:Dynamic = pop();
+          if (cond == false || cond == 0 || cond == null) pc = target;
 
         case PRINT:
           var argCount = read();
-          var lineNum = read();
+          var line = read();
 
           var args = [];
           for (i in 0...argCount) {
             var val = pop();
-            var id = Std.int(val);
-            if (heap.exists(id)) args.push(heap.get(id));
+            var obj = resolveObject(val);
+            if (obj != null) args.push(obj);
             else args.push(val);
           }
           args.reverse();
-          haxe.Log.trace(args.join(", "), { fileName: "testTwo.hx", lineNumber: lineNum, className: "Bytemod", methodName: "script" });
+          haxe.Log.trace(args.join(", "), { fileName: "testTwo.hx", lineNumber: line, className: "Bytemod", methodName: "script" });
 
         case CALL_NATIVE:
           var path = symbols[read()];
@@ -216,18 +231,28 @@ class BytemodVM {
     Sys.println(constants);
     Sys.println('--- SYMBOLS ---');
     Sys.println(symbols);
+    Sys.println('--- STRING POOL ---');
+    Sys.println(stringPool.toString());
     Sys.println('--- HEAP BEFORE ---');
     Sys.println(heap.toString());
+
+    // Cleaning the heap and pool
     var current = this.heapCounter;
     while (current > snapshotCounter) {
       current--;
       heap.remove(current);
+      for (key in stringPool.keys()) {
+        if (stringPool.get(key) == current) {
+          stringPool.remove(key);
+          break;
+        }
+      }
     }
     this.heapCounter = snapshotCounter;
 
     Sys.println('--- EXECUTION FINISHED ---');
-    Sys.println('--- STACK ---');
-    Sys.println(stack);
+//    Sys.println('--- STACK ---');
+//    Sys.println(stack);
     Sys.println('--- GLOBAL HEAP ---');
     Sys.println(globalHeap.toString());
     Sys.println('--- HEAP ---');
@@ -242,17 +267,6 @@ class BytemodVM {
     this.heapCounter = varCounter;
     this.memory = new Vector<Float>(varCounter);
     for (i in 0...varCounter) memory[i] = 0;
-  }
-
-  private function resolveObject(val:Dynamic):Null<Dynamic> {
-    var id = Std.int(val);
-
-    if (val == id) {
-      if (heap.exists(id)) return heap.get(id);
-      if (globalHeap.exists(id)) return globalHeap.get(id);
-    }
-
-    return null;
   }
 
   private function resolveClassSafe(className:String):Null<Class<Dynamic>> {

@@ -18,8 +18,8 @@ class BytemodPrinter {
       var output = '[0x${toHex(addr)}] ' + OpCode.toString(op);
 
       switch (op) {
-        case PUSH_CONST | GET_VAR | SET_VAR | PUSH_STR | GET_PROPERTY | SET_PROPERTY | NEW: output += ' (${read()})';
-        case JUMP | JUMP_IF_FALSE: output += ' (target: 0x${toHex(read())})';
+        case PUSH_CONST | GET_STATIC | SET_STATIC | GET_VAR | SET_VAR | PUSH_STR | GET_PROPERTY | SET_PROPERTY | NEW: output += ' (${read()})';
+        case JUMP | JUMP_IF_FALSE | JUMP_IF_TRUE: output += ' (target: 0x${toHex(read())})';
         case CALL_NATIVE: output += ' (id: ${read()}, args: ${read()})';
         case PRINT: output += ' (args: ${read()}, line: ${read()})';
         default:

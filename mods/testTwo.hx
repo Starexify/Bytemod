@@ -1,6 +1,15 @@
 function otherFunc() {
+  static var i = 0;
   var text = "Text";
   trace(text);
-  var text2 = "Text" + "Test2";
-  trace(text2);
+
+  final j = 1;
+  j = j + 1;
+  trace(j);
+
+  i = i + 1;
+  trace(i);
+  i = i + 1;
+  i = i + 1;
+  i = i + 1;
 }
