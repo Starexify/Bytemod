@@ -12,6 +12,9 @@ class BytemodVM {
   public var symbols:Array<String> = [];
   public var varCounter:Int = 0;
 
+  // Baked constants
+  private var bakedConstants:Vector<Float>;
+
   public var memory:Vector<Float>;
   public var heap:Map<Int, Dynamic> = new Map();
   public var globalHeap:Map<Int, Dynamic> = new Map();
@@ -43,8 +46,11 @@ class BytemodVM {
   var stack:Vector<Float> = new Vector<Float>(256);
   var sp:Int = 0;
   var pc:Int = 0;
+
   inline function read():Int return bytecode[pc++];
+
   inline function push(val:Float):Void stack[sp++] = val;
+
   inline function pop():Float return stack[--sp];
 
   public function execute(code:Array<Int>) {
@@ -59,188 +65,217 @@ class BytemodVM {
       this.heapCounter = varCounter;
     }
 
-    var snapshotCounter = this.heapCounter;
-
-    Sys.println('--- STARTING EXECUTION ---');
-    while (pc < bytecode.length) {
-      var op:OpCode = read();
-
-      switch (op) {
-        case PUSH_CONST:
-          var val = constants[read()];
-          push((val is String) ? storeInHeap(val) : val);
-
-        case PUSH_STR: push(storeInHeap(constants[read()]));
-        case GET_VAR: push(memory[read()]);
-        case SET_VAR: memory[read()] = pop();
-
-        case GET_STATIC:
-          var staticId = read();
-          if (globalHeap.exists(staticId)) push(globalHeap.get(staticId));
-          else push(0);
-
-        case SET_STATIC: globalHeap.set(read(), pop());
-
-        case GET_PROPERTY:
-          var fieldName:String = constants[read()];
-          var val = pop();
-          var instance = resolveObject(val);
-          if (instance != null) {
-            var val = Reflect.getProperty(instance, fieldName);
-            push((val is Float || val is Int) ? val : storeInHeap(val));
-          }
-          else {
-            trace("ERROR");
-            BytemodErrorHandler.report(RuntimeError('Accessing property "$fieldName" on null (stack value: $val)'), "testTwo.hx", -1);
-            push(0);
-          }
-
-        case SET_PROPERTY:
-          var fieldName:String = constants[read()];
-          var val = pop();
-          var instance = resolveObject(pop());
-          if (instance != null) {
-            var resolvedValue = resolveObject(val);
-            var value:Dynamic = (resolvedValue != null) ? resolvedValue : val;
-            try {
-              Reflect.setProperty(instance, fieldName, value);
-            } catch (e:Dynamic) {
-              // Log a warning instead of crashing the whole VM
-              BytemodErrorHandler.report(RuntimeError('Failed to set "$fieldName" on instance. Type mismatch?'), "testTwo.hx", -1);
-            }
-          }
-          else {
-            BytemodErrorHandler.report(RuntimeError('Cannot set property "$fieldName" on null'), "testTwo.hx", -1);
-          }
-
-        case NEW:
-          var className:String = constants[read()];
-          var cls = resolveClassSafe(className);
-
-          // Set in heap
-          if (cls != null) {
-            var instance = Type.createInstance(cls, []);
-            push(storeInHeap(instance));
-          } else {
-            BytemodErrorHandler.report(RuntimeError('Class not found: "$className"'), "testTwo.hx", -1);
-            push(0);
-          }
-
-        case LT:
-          var b:Float = pop();
-          var a:Float = pop();
-          push((a < b) ? 1 : 0);
-
-        case ADD:
-          var b = pop();
-          var a = pop();
-
-          var valA = resolveObject(a);
-          var valB = resolveObject(b);
-
-          if (valA is String || valB is String) {
-            var strA = (valA != null) ? Std.string(valA) : Std.string(a);
-            var strB = (valB != null) ? Std.string(valB) : Std.string(b);
-            push(storeInHeap(strA + strB));
-          } else push(a + b);
-
-        case SUB:
-          var b:Float = pop();
-          var a:Float = pop();
-          push(a - b);
-
-        case MUL:
-          var b:Float = pop();
-          var a:Float = pop();
-          push(a * b);
-
-        case DIV:
-          var b:Float = pop();
-          var a:Float = pop();
-          push(a / b);
-
-        case IS:
-          var targetId = pop();
-          var valueId = pop();
-
-          var actualValue:Dynamic = resolveObject(valueId);
-          if (actualValue == null) actualValue = valueId;
-          var targetObj:Dynamic = resolveObject(targetId);
-          if (targetObj == null) targetObj = targetId;
-
-          var isMatch:Bool = false;
-
-          if (targetObj is String) {
-            var cls = resolveClassSafe(targetObj);
-            if (cls != null) isMatch = Std.isOfType(actualValue, cls);
-            else BytemodErrorHandler.report(RuntimeError('Type check failed - Class not found: "$targetObj"'), "testTwo.hx", -1);
-          }
-          else if (targetObj is Class) {
-            isMatch = Std.isOfType(actualValue, targetObj);
-          }
-          else {
-            isMatch = Std.isOfType(actualValue, targetObj);
-          }
-          push(isMatch ? 1 : 0);
-
-        case JUMP: pc = read();
-
-        case JUMP_IF_TRUE:
-          var target = read();
-          var cond:Dynamic = pop();
-          if (cond != 0 && cond != null && cond != false) pc = target;
-
-        case JUMP_IF_FALSE:
-          var target = read();
-          var cond:Dynamic = pop();
-          if (cond == false || cond == 0 || cond == null) pc = target;
-
-        case PRINT:
-          var argCount = read();
-          var line = read();
-
-          var args = [];
-          for (i in 0...argCount) {
-            var val = pop();
-            var obj = resolveObject(val);
-            if (obj != null) args.push(obj);
-            else args.push(val);
-          }
-          args.reverse();
-          haxe.Log.trace(args.join(", "), { fileName: "testTwo.hx", lineNumber: line, className: "Bytemod", methodName: "script" });
-
-        case CALL_NATIVE:
-          var path = symbols[read()];
-          var argCount = read();
-
-          if (nativeFunctions.exists(path)) {
-            var func = nativeFunctions.get(path);
-            push(func());
-          }
-          else {
-
-            var parts = path.split(".");
-            var methodName = parts.pop();
-            var className = parts.join(".");
-
-            var cls = Type.resolveClass(className);
-            if (cls != null) {
-              var result = Reflect.callMethod(cls, Reflect.field(cls, methodName), []);
-              push(result);
-            }
-            else BytemodErrorHandler.report(RuntimeError('Could not resolve native class/method: "$path"'), "testTwo.hx", -1);
-          }
-
-          default: BytemodErrorHandler.report(RuntimeError('Unknown OpCode: ${OpCode.toString(op)} at PC: ${pc-1}'), "VM_INTERNAL", -1);
+    bakedConstants = new Vector<Float>(constants.length);
+    for (i in 0...constants.length) {
+      var c = constants[i];
+      if (c is String) {
+        bakedConstants[i] = storeInHeap(c);
+      } else if (c is Float || c is Int) {
+        bakedConstants[i] = cast c;
+      } else {
+        bakedConstants[i] = 0;
       }
     }
 
-    Sys.println('--- CONSTANTS ---');
-    Sys.println(constants);
-    Sys.println('--- SYMBOLS ---');
-    Sys.println(symbols);
-    Sys.println('--- STRING POOL ---');
-    Sys.println(stringPool.toString());
+    var snapshotCounter = this.heapCounter;
+
+    Sys.println('--- STARTING EXECUTION ---');
+    try {
+      while (pc < bytecode.length) {
+        var op:OpCode = read();
+
+        switch (op) {
+          case PUSH_CONST | PUSH_STR: push(bakedConstants[read()]);
+          case GET_VAR: push(memory[read()]);
+          case SET_VAR: memory[read()] = pop();
+
+          case GET_STATIC:
+            var staticId = read();
+            if (globalHeap.exists(staticId)) push(globalHeap.get(staticId));
+            else push(0);
+
+          case SET_STATIC: globalHeap.set(read(), pop());
+
+          case GET_PROPERTY:
+            var fieldId = bakedConstants[read()];
+            var fieldName:String = (fieldId < 0) ? resolveObject(fieldId) : Std.string(fieldId);
+            var val = pop();
+            var instance = resolveObject(val);
+            if (instance != null) {
+              var val = Reflect.getProperty(instance, fieldName);
+              push((val is Float || val is Int) ? val : storeInHeap(val));
+            }
+            else {
+              BytemodErrorHandler.report(RuntimeError('Accessing "$fieldName" on null'), "testTwo.hx", -1);
+              throw "BYTEMOD_RUNTIME_ERROR";
+            }
+
+          case SET_PROPERTY:
+            var fieldId = bakedConstants[read()];
+            var fieldName:String = (fieldId < 0) ? resolveObject(fieldId) : Std.string(fieldId);
+            var val = pop();
+            var instance = resolveObject(pop());
+            if (instance != null) {
+              var value:Dynamic = resolveObject(val);
+              if (value == null) value = val;
+              try {
+                Reflect.setProperty(instance, fieldName, value);
+              }
+              catch (e:Dynamic) {
+                BytemodErrorHandler.report(RuntimeError('Failed to set "$fieldName" on instance. Type mismatch?'), "testTwo.hx", -1);
+                trace("Called push(0)");
+              }
+            }
+            else {
+              BytemodErrorHandler.report(RuntimeError('Cannot set property "$fieldName" on null'), "testTwo.hx", -1);
+              throw "BYTEMOD_RUNTIME_ERROR";
+            }
+
+          case NEW:
+            var classId = bakedConstants[read()];
+            var className:String = (classId < 0) ? resolveObject(classId) : Std.string(classId);
+            var cls = resolveClassSafe(className);
+
+            // Set in heap
+            if (cls != null) {
+              push(storeInHeap(Type.createInstance(cls, [])));
+            }
+            else {
+              BytemodErrorHandler.report(RuntimeError('Class not found: "$className"'), "testTwo.hx", -1);
+              throw "BYTEMOD_RUNTIME_ERROR";
+            }
+
+          case LT:
+            var b:Float = pop();
+            var a:Float = pop();
+            push((a < b) ? 1 : 0);
+
+          case ADD:
+            var b = pop();
+            var a = pop();
+
+            var valA = resolveObject(a);
+            var valB = resolveObject(b);
+
+            if (valA is String || valB is String) {
+              var strA = (valA != null) ? Std.string(valA) : Std.string(a);
+              var strB = (valB != null) ? Std.string(valB) : Std.string(b);
+              push(storeInHeap(strA + strB));
+            } else push(a + b);
+
+          case SUB:
+            var b:Float = pop();
+            var a:Float = pop();
+            push(a - b);
+
+          case MUL:
+            var b:Float = pop();
+            var a:Float = pop();
+            push(a * b);
+
+          case DIV:
+            var b:Float = pop();
+            var a:Float = pop();
+            push(a / b);
+
+          case IS:
+            var targetId = pop();
+            var valueId = pop();
+
+            var actualValue:Dynamic = resolveObject(valueId);
+            if (actualValue == null) actualValue = valueId;
+            var targetObj:Dynamic = resolveObject(targetId);
+            if (targetObj == null) targetObj = targetId;
+
+            var isMatch:Bool = false;
+
+            if (targetObj is String) {
+              var cls = resolveClassSafe(targetObj);
+              if (cls != null) isMatch = Std.isOfType(actualValue, cls);
+              else BytemodErrorHandler.report(RuntimeError('Type check failed - Class not found: "$targetObj"'), "testTwo.hx", -1);
+            }
+            else if (targetObj is Class) {
+              isMatch = Std.isOfType(actualValue, targetObj);
+            }
+            else {
+              isMatch = Std.isOfType(actualValue, targetObj);
+            }
+            push(isMatch ? 1 : 0);
+
+          case JUMP: pc = read();
+
+          case JUMP_IF_TRUE:
+            var target = read();
+            var cond:Dynamic = pop();
+            if (cond != 0 && cond != null && cond != false) pc = target;
+
+          case JUMP_IF_FALSE:
+            var target = read();
+            var cond:Dynamic = pop();
+            if (cond == false || cond == 0 || cond == null) pc = target;
+
+          case PRINT:
+            var argCount = read();
+            var line = read();
+
+            var args = [];
+            for (i in 0...argCount) {
+              var val = pop();
+              var obj = resolveObject(val);
+              if (obj != null) args.push(obj);
+              else args.push(val);
+            }
+            args.reverse();
+            haxe.Log.trace(args.join(", "), { fileName: "testTwo.hx", lineNumber: line, className: "Bytemod", methodName: "script" });
+
+          case CALL_NATIVE:
+            var path = symbols[read()];
+            var argCount = read();
+
+            if (nativeFunctions.exists(path)) {
+              var func = nativeFunctions.get(path);
+              push(func());
+            }
+            else {
+
+              var parts = path.split(".");
+              var methodName = parts.pop();
+              var className = parts.join(".");
+
+              var cls = Type.resolveClass(className);
+              var method = Reflect.field(cls, methodName);
+              if (method == null) {
+                BytemodErrorHandler.report(RuntimeError('Method "$methodName" not found on class "$className"'), "testTwo.hx", -1);
+                throw "BYTEMOD_RUNTIME_ERROR";
+              }
+
+              var result = Reflect.callMethod(cls, Reflect.field(cls, methodName), []);
+              push(result);
+            }
+
+          default:
+            BytemodErrorHandler.report(RuntimeError('Unknown OpCode: ${OpCode.toString(op)} at PC: ${pc - 1}'), "VM_INTERNAL", -1);
+            throw "BYTEMOD_RUNTIME_ERROR";
+        }
+      }
+    }
+    catch (e:String) {
+      if (e == "BYTEMOD_RUNTIME_ERROR") {
+        Sys.println('Execution stopped due to runtime error.');
+      } else throw e;
+    }
+    catch (e:Dynamic) {
+      BytemodErrorHandler.report(RuntimeError('Fatal VM Crash: $e'), "VM", -1);
+    }
+
+//    Sys.println('--- BAKED CONSTANTS ---');
+//    Sys.println(bakedConstants);
+//    Sys.println('--- CONSTANTS ---');
+//    Sys.println(constants);
+//    Sys.println('--- SYMBOLS ---');
+//    Sys.println(symbols);
+//    Sys.println('--- STRING POOL ---');
+//    Sys.println(stringPool.toString());
     Sys.println('--- HEAP BEFORE ---');
     Sys.println(heap.toString());
 
