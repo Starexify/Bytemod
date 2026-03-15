@@ -83,13 +83,15 @@ class BytemodVM {
 
         case GET_PROPERTY:
           var fieldName:String = constants[read()];
-          var instance = resolveObject(pop());
+          var val = pop();
+          var instance = resolveObject(val);
           if (instance != null) {
             var val = Reflect.getProperty(instance, fieldName);
             push((val is Float || val is Int) ? val : storeInHeap(val));
           }
           else {
-            trace("Error: Accessing property " + fieldName + " on null");
+            trace("ERROR");
+            BytemodErrorHandler.report(RuntimeError('Accessing property "$fieldName" on null (stack value: $val)'), "testTwo.hx", -1);
             push(0);
           }
 
@@ -98,13 +100,17 @@ class BytemodVM {
           var val = pop();
           var instance = resolveObject(pop());
           if (instance != null) {
-            var value = heap.exists(Std.int(val)) ? heap.get(Std.int(val)) : val;
+            var resolvedValue = resolveObject(val);
+            var value:Dynamic = (resolvedValue != null) ? resolvedValue : val;
             try {
               Reflect.setProperty(instance, fieldName, value);
             } catch (e:Dynamic) {
               // Log a warning instead of crashing the whole VM
-              trace('[Bytemod] Cannot set property "$fieldName" on ' + Type.getClassName(Type.getClass(instance)));
+              BytemodErrorHandler.report(RuntimeError('Failed to set "$fieldName" on instance. Type mismatch?'), "testTwo.hx", -1);
             }
+          }
+          else {
+            BytemodErrorHandler.report(RuntimeError('Cannot set property "$fieldName" on null'), "testTwo.hx", -1);
           }
 
         case NEW:
@@ -116,7 +122,7 @@ class BytemodVM {
             var instance = Type.createInstance(cls, []);
             push(storeInHeap(instance));
           } else {
-            trace("Error: Class not found -> " + className);
+            BytemodErrorHandler.report(RuntimeError('Class not found: "$className"'), "testTwo.hx", -1);
             push(0);
           }
 
@@ -157,15 +163,17 @@ class BytemodVM {
           var targetId = pop();
           var valueId = pop();
 
-          var actualValue:Dynamic = heap.exists(Std.int(valueId)) ? heap.get(Std.int(valueId)) : valueId;
-          var targetObj:Dynamic = heap.exists(Std.int(targetId)) ? heap.get(Std.int(targetId)) : targetId;
+          var actualValue:Dynamic = resolveObject(valueId);
+          if (actualValue == null) actualValue = valueId;
+          var targetObj:Dynamic = resolveObject(targetId);
+          if (targetObj == null) targetObj = targetId;
 
           var isMatch:Bool = false;
 
           if (targetObj is String) {
             var cls = resolveClassSafe(targetObj);
             if (cls != null) isMatch = Std.isOfType(actualValue, cls);
-            else trace("Error: 'is' check failed - Class not found: " + targetObj);
+            else BytemodErrorHandler.report(RuntimeError('Type check failed - Class not found: "$targetObj"'), "testTwo.hx", -1);
           }
           else if (targetObj is Class) {
             isMatch = Std.isOfType(actualValue, targetObj);
@@ -220,10 +228,10 @@ class BytemodVM {
               var result = Reflect.callMethod(cls, Reflect.field(cls, methodName), []);
               push(result);
             }
-            else trace("Error: Could not resolve class " + className);
+            else BytemodErrorHandler.report(RuntimeError('Could not resolve native class/method: "$path"'), "testTwo.hx", -1);
           }
 
-        default: trace("Unknown OpCode: " + OpCode.toString(op));
+          default: BytemodErrorHandler.report(RuntimeError('Unknown OpCode: ${OpCode.toString(op)} at PC: ${pc-1}'), "VM_INTERNAL", -1);
       }
     }
 
@@ -284,7 +292,7 @@ class BytemodVM {
       if (cls != null) return cls;
     }
 
-    // Check your manual globals or smth later
+    // Check manually globals or smth later
     return null;
   }
 }

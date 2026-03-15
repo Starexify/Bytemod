@@ -1,15 +1,27 @@
 function otherFunc() {
-  static var i = 0;
+  var testClass = new Test.TestClass();
+  trace(testClass);
+  testClass.a = 2;
+  trace(testClass.a);
+  testClass.B = 2;
+  trace(testClass.B);
+  testClass.c = 2;
+  trace(testClass.c);
+
   var text = "Text";
   trace(text);
 
-  final j = 1;
-  j = j + 1;
-  trace(j);
+  // --- STATIC TEST ---
+//  static var i = 0;
+//  trace(i);
+//  i = i + 1;
 
-  i = i + 1;
-  trace(i);
-  i = i + 1;
-  i = i + 1;
-  i = i + 1;
+  // --- FINALS TEST ---
+//  final j = 1;
+//  j = j + 1;
+//  trace(j);
+}
+
+function anotherFunc() {
+
 }

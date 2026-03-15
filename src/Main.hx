@@ -8,7 +8,8 @@ class Main {
     //while (true) {
       BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("otherFunc"));
       Bytemod.scriptCache.get("testTwo.hx").callFunction("otherFunc");
-      Bytemod.scriptCache.get("testTwo.hx").callFunction("otherFunc");
+//      Bytemod.scriptCache.get("testTwo.hx").callFunction("otherFunc");
+      //Bytemod.scriptCache.get("testTwo.hx").callFunction("anotherFunc");
     //}
     // NATIVE HAXE
     //otherFunc();
@@ -32,6 +33,8 @@ class Main {
 
 class TestClass {
   var a:Int = 10;
+  final B:Int = 20;
+  public var c(never, null):Int;
 
   public var score(default, set):Int;
   public function set_score(v) {

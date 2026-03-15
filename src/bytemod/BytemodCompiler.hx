@@ -74,7 +74,8 @@ class BytemodCompiler {
         id = getVarId(name);
         // CHECK: If it's already in finalIndexes, this is an illegal re-assignment
         if (finalIndexes.exists(id)) {
-          error("Cannot reassign final variable " + name);
+          BytemodErrorHandler.report(CompileError('Cannot reassign final variable "$name"'), "testTwo.hx", lastLine());
+          hasError = true;
         }
 
         // If this is the declaration (e.g., final j = 1), mark it now
@@ -205,11 +206,9 @@ class BytemodCompiler {
 
     this.tokens = tokens;
     this.i = 0;
-    var result:CompileResult = {
-      bytecode: [],
-      functions: new Map(),
-      success: !hasError
-    };
+
+    var mainBytecode = [];
+    var functions = new Map<String, Array<Int>>();
 
     while (i < tokens.length) {
       var t = peek();
@@ -226,9 +225,9 @@ class BytemodCompiler {
           }
           consume(); // "}"
         }
-        result.functions.set(funcName, funcBytes);
+        functions.set(funcName, funcBytes);
       }
-      else parseExpr(result.bytecode);
+      else parseExpr(mainBytecode);
     }
 
     // No longer needed, free memory
@@ -236,8 +235,8 @@ class BytemodCompiler {
     this.i = 0;
 
     return {
-      bytecode: hasError ? [] : result.bytecode,
-      functions: hasError ? new Map() : result.functions,
+      bytecode: hasError ? [] : mainBytecode,
+      functions: hasError ? new Map() : functions,
       success: !hasError
     };
   }
@@ -440,11 +439,6 @@ class BytemodCompiler {
       }
     }
     return tokens;
-  }
-
-  function error(message:String):Void {
-    haxe.Log.trace('Compile Error: $message', { fileName: "testTwo.hx", lineNumber: lastLine(), className: "Bytemod", methodName: "compile" });
-    hasError = true;
   }
 }
 
