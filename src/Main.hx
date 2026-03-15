@@ -5,9 +5,19 @@ class Main {
   static function main() {
     Bytemod.init();
     //Bytemod.scriptCache.get("test.hx");
-    BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("testFunc"));
+
+    //while (true) {
+      BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("otherFunc"));
+      Bytemod.scriptCache.get("testTwo.hx").callFunction("otherFunc");
+    //}
+
+//    BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("testFunc"));
+//    Bytemod.scriptCache.get("testTwo.hx").callFunction("testFunc");
+//
+//    BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("otherFunc"));
+//    Bytemod.scriptCache.get("testTwo.hx").callFunction("otherFunc");
+
 //    var startVM = Timer.stamp();
-    Bytemod.scriptCache.get("testTwo.hx").callFunction("testFunc");
 //    var endVM = Timer.stamp();
 //    trace('Bytemod VM: ' + (endVM - startVM) + 's');
 
@@ -29,5 +39,13 @@ class Main {
 }
 
 class TestClass {
+  var a:Int = 10;
+
+  public var score(default, set):Int;
+  public function set_score(v) {
+    this.score = v;
+    return v;
+  }
+
   public function toString() return "I am a TestClass instance!";
 }

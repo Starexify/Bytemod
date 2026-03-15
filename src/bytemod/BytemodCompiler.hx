@@ -21,15 +21,56 @@ class BytemodCompiler {
   function parseStatement(bytes:Array<Int>):Void {
     var name = consume();
 
-    // If the modder wrote "var i = 10", name is currently "var".
-    // We need the ACTUAL name.
-    if (name == "var") {
-      name = consume(); // Now name is "k"
+    // Handle Types
+    if (peek() == ":") {
+      consume(); // eat ":"
+      // Eat everything until we hit an assignment or end of statement
+      while (i < tokens.length && peek() != "=" && peek() != ";" && peek() != ")") {
+        consume();
+      }
+//      while (peek() == "." || peek() == "<") {
+//        if (peek() == "<") {
+//          // This is a simple way to skip generics;
+//          // you'd need a loop to find the matching ">" for real ones
+//          while (consume() != ">") {}
+//        } else {
+//          consume(); // eat "."
+//          consume(); // eat next part
+//        }
+//      }
     }
 
-    if (consume() == "=") {
+    // Handle fields
+    if (peek() == ".") {
+      bytes.push(OpCode.GET_VAR);
+      bytes.push(getVarId(name));
+
+      while (peek() == ".") {
+        consume(); // eat "."
+        var field = consume();
+
+        if (peek() == "=") {
+          consume(); // eat "="
+          parseExpression(bytes); // Push the value (20)
+
+          if (peek() == ";") consume();
+
+          bytes.push(OpCode.SET_PROPERTY);
+          bytes.push(getConstantId(field));
+          return;
+        }
+        else { // Handle chained fields
+          bytes.push(OpCode.GET_PROPERTY);
+          bytes.push(getConstantId(field));
+        }
+      }
+    }
+
+    // Handle assignment
+    if (peek() == "=") {
+      consume(); // "="
       parseExpression(bytes);
-      consume(); // ";"
+      if (peek() == ";") consume();
 
       bytes.push(OpCode.SET_VAR);
       bytes.push(getVarId(name));
@@ -46,40 +87,57 @@ class BytemodCompiler {
     return id;
   }
 
-  function parseExpression(bytes:Array<Int>) {
+  function parseExpression(bytes:Array<Int>, isRoot:Bool = true) {
     var firstToken = consume();
 
+    // Handling new class instancing
     if (firstToken == "new") {
       var className = consume();
-
+      while (peek() == ".") {
+        consume();
+        className += "." + consume();
+      }
       if (peek() == "(") {
         consume(); // "("
         consume(); // ")"
       }
-
       bytes.push(OpCode.NEW);
       bytes.push(getConstantId(className));
       return;
     }
 
-    var next = peek();
-    if (next == "(") {
-      consume(); // "("
-      // For now, let's assume 0 arguments for stamp()
-      consume(); // ")"
-
-      bytes.push(OpCode.CALL_NATIVE);
-      bytes.push(getNativeId(firstToken));
-    } else {
-      pushValue(bytes, firstToken);
+    // Handle import paths (TODO: imports don't work for now)
+    var path = firstToken;
+    while (peek() == ".") {
+      consume(); // eat "."
+      path += "." + consume();
     }
 
-    while (true) {
+    if (peek() == "(") {
+      consume(); // eat "("
+
+      // Support arguments!
+      var argCount = 0;
+      while (peek() != ")") {
+        parseExpression(bytes, false);
+        argCount++;
+        if (peek() == ",") consume();
+      }
+      consume(); // eat ")"
+
+      bytes.push(OpCode.CALL_NATIVE);
+      bytes.push(getNativeId(path));
+      bytes.push(argCount);
+    } else {
+      pushValue(bytes, path);
+    }
+
+    // Handle Math and Operators (+, -, is, etc)
+    while (isRoot) {
       var op = peek();
       if (op == "+" || op == "-" || op == "*" || op == "/") {
         consume(); // eat the operator
-        var secondToken = consume();
-        pushValue(bytes, secondToken);
+        parseExpression(bytes, false);
 
         if (op == "+") bytes.push(OpCode.ADD);
         else if (op == "-") bytes.push(OpCode.SUB);
@@ -87,8 +145,13 @@ class BytemodCompiler {
         else if (op == "/") bytes.push(OpCode.DIV);
       }
       else if (op == "is") {
-        consume();
+        consume(); // eat "is"
         var typeName = consume();
+
+        while (i < tokens.length && peek() == ".") {
+          consume(); // eat "."
+          typeName += "." + consume();
+        }
 
         bytes.push(OpCode.PUSH_STR);
         bytes.push(getConstantId(typeName));
@@ -108,6 +171,9 @@ class BytemodCompiler {
    * @return The compiled bytecode
    */
   public function compile(tokens:Array<Token>):CompileResult {
+    this.variableMap = new Map();
+    this.varCounter = 0;
+
     this.tokens = tokens;
     this.i = 0;
     var result:CompileResult = {
@@ -145,12 +211,18 @@ class BytemodCompiler {
   }
 
   function parseExpr(bytes:Array<Int>):Void {
-    var t = consume();
+    var t = peek();
 
-    if (t == "var" || t == ";") {
-      return;
+    if (t == "var") {
+      consume(); // eat var
+      parseStatement(bytes);
+      if (peek() == ";") consume();
+    }
+    else if (t == ";") {
+      consume(); // Just a stray semicolon, skip it
     }
     else if (t == "trace") {
+      consume(); // eat "trace"
       var lineNum = lastLine();
       consume(); // skip "("
 
@@ -161,7 +233,7 @@ class BytemodCompiler {
         if (peek() == ",") consume();
       }
       consume(); // ")"
-      consume(); // ";"
+      if (peek() == ";") consume();
 
       // Push the TRACE opcode followed by how many items to pop
       bytes.push(OpCode.PRINT);
@@ -169,8 +241,8 @@ class BytemodCompiler {
       bytes.push(lineNum);
     }
     else {
-      i--;
       parseStatement(bytes);
+      if (peek() == ";") consume();
     }
   }
 
@@ -178,21 +250,27 @@ class BytemodCompiler {
     var valFloat = Std.parseFloat(token);
 
     if (!Math.isNaN(valFloat)) {
-      // It's a number (Int or Float)!
-      var id = getConstantId(valFloat);
+      // number
       bytes.push(OpCode.PUSH_CONST);
-      bytes.push(id);
+      bytes.push(getConstantId(valFloat));
     }
     else if (token.startsWith('"')) {
-      // It's a String! (e.g. "Hello")
+      // String
       var str = token.substring(1, token.length - 1);
       bytes.push(OpCode.PUSH_STR);
       bytes.push(getConstantId(str));
     }
     else {
-      // It's a Variable
+      // Variable
+      var parts = token.split(".");
       bytes.push(OpCode.GET_VAR);
-      bytes.push(getVarId(token));
+      bytes.push(getVarId(parts[0]));
+
+      // Property
+      for (j in 1...parts.length) {
+        bytes.push(OpCode.GET_PROPERTY);
+        bytes.push(getConstantId(parts[j]));
+      }
     }
   }
 
@@ -202,6 +280,8 @@ class BytemodCompiler {
 
     var newId = varCounter;
     variableMap.set(varName, newId);
+
+    // Sys.println('Variable Registered: "$varName" at Index $newId');
 
     varCounter++;
     return newId;
@@ -233,7 +313,7 @@ class BytemodCompiler {
     var tokens = [];
     var lines = code.split("\n");
 
-    var r:EReg = ~/"[^"]*"|[0-9.]+|[a-zA-Z_.]+|==|<=|>=|<|>|is|\+|\-|\*|\/|[\(\)\{\};=,]/g;
+    var r:EReg = ~/"[^"]*"|[0-9.]+|[a-zA-Z_]+|==|<=|>=|<|>|is|\+|\-|\*|\/|[\(\)\{\};=,.<>:]/g;
 
     for (i in 0...lines.length) {
       var lineText = lines[i];

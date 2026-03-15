@@ -9,8 +9,16 @@ class BytemodVM {
   public var symbols:Array<String> = [];
   public var varCounter:Int = 0;
 
+  // TODO: Add the ability to use native functions without ts
+  public var nativeFunctions:Map<String, Dynamic> = [
+    "haxe.Timer.stamp" => haxe.Timer.stamp,
+    "Math.random" => Math.random,
+    "Math.floor" => Math.floor
+  ];
+
   public var memory:Vector<Float>;
 
+  public var globalHeap:Map<Int, Dynamic> = new Map();
   public var heap:Map<Int, Dynamic> = new Map();
   private var heapCounter:Int = 0;
 
@@ -27,17 +35,18 @@ class BytemodVM {
 
     if (memory == null) {
       memory = new Vector<Float>(varCounter);
-      for(i in 0...varCounter) memory[i] = 0;
+      for (i in 0...varCounter) memory[i] = 0;
 
       this.heapCounter = varCounter;
     }
+    var snapshotCounter = this.heapCounter;
 
     var pc:Int = 0;
     var stack:Vector<Dynamic> = new Vector<Dynamic>(256);
     var sp:Int = 0;
     var len:Int = bytecode.length;
 
-    trace('--- STARTING EXECUTION ---');
+    Sys.println('--- STARTING EXECUTION ---');
     while (pc < len) {
       var op:OpCode = bytecode[pc++];
 
@@ -50,15 +59,61 @@ class BytemodVM {
           var constId = bytecode[pc++];
           var str = constants[constId];
 
-          var id = heapCounter++;
-          heap.set(id, str);
-          stack[sp++] = id;
+          var foundId:Int = -1;
+          for (key in heap.keys()) {
+            if (heap.get(key) == str) {
+              foundId = key;
+              break;
+            }
+          }
+          if (foundId != -1) {
+            stack[sp++] = foundId;
+          } else {
+            stack[sp++] = storeInHeap(str);
+          }
 
         case GET_VAR:
           stack[sp++] = memory[bytecode[pc++]];
 
         case SET_VAR:
           memory[bytecode[pc++]] = stack[--sp];
+
+        case GET_PROPERTY:
+          var constId = bytecode[pc++];
+          var fieldName:String = constants[constId];
+          var objectId = stack[--sp];
+
+          var instance = resolveObject(objectId);
+          if (instance != null) {
+            var val = Reflect.getProperty(instance, fieldName);
+            if (val is Float || val is Int) {
+              stack[sp++] = val;
+            }
+            else {
+              stack[sp++] = storeInHeap(val);
+            }
+          }
+          else {
+            trace("Error: Accessing property " + fieldName + " on null");
+            stack[sp++] = 0;
+          }
+
+        case SET_PROPERTY:
+          var constId = bytecode[pc++];
+          var fieldName:String = constants[constId];
+          var val = stack[--sp];
+          var objectId = stack[--sp];
+
+          var instance = resolveObject(objectId);
+          if (instance != null) {
+            var value = heap.exists(Std.int(val)) ? heap.get(Std.int(val)) : val;
+            try {
+              Reflect.setProperty(instance, fieldName, value);
+            } catch (e:Dynamic) {
+              // Log a warning instead of crashing the whole VM
+              trace('[Bytemod] Cannot set property "$fieldName" on ' + Type.getClassName(Type.getClass(instance)));
+            }
+          }
 
         case NEW:
           var constId = bytecode[pc++];
@@ -127,9 +182,8 @@ class BytemodVM {
           var args = [];
           for (i in 0...argCount) {
             var val = stack[--sp];
-
             var id = Std.int(val);
-            if (id > 0 && heap.exists(id)) args.push(heap.get(id));
+            if (heap.exists(id)) args.push(heap.get(id));
             else args.push(val);
           }
           args.reverse();
@@ -139,16 +193,22 @@ class BytemodVM {
           var symbolId = bytecode[pc++];
           var path = symbols[symbolId];
 
-          var parts = path.split(".");
-          var methodName = parts.pop();
-          var className = parts.join(".");
-
-          var cls = Type.resolveClass(className);
-          if (cls != null) {
-            var result = Reflect.callMethod(cls, Reflect.field(cls, methodName), []);
-            stack[sp++] = result;
+          if (nativeFunctions.exists(path)) {
+            var func = nativeFunctions.get(path);
+            stack[sp++] = func();
           } else {
-            trace("Error: Could not resolve class " + className);
+
+            var parts = path.split(".");
+            var methodName = parts.pop();
+            var className = parts.join(".");
+
+            var cls = Type.resolveClass(className);
+            if (cls != null) {
+              var result = Reflect.callMethod(cls, Reflect.field(cls, methodName), []);
+              stack[sp++] = result;
+            } else {
+              trace("Error: Could not resolve class " + className);
+            }
           }
 
         default:
@@ -156,13 +216,43 @@ class BytemodVM {
       }
     }
 
-    trace('--- EXECUTION FINISHED ---');
-    //trace("Final state of stack: " + stack);
-    trace('--- HEAP ---');
-    trace(heap);
-    trace('--- MEMORY ---');
-    trace(memory);
-    trace('---------------------------');
+    Sys.println('--- HEAP BEFORE ---');
+    Sys.println(heap.toString());
+    var current = this.heapCounter;
+    while (current > snapshotCounter) {
+      current--;
+      heap.remove(current);
+    }
+    this.heapCounter = snapshotCounter;
+
+    Sys.println('--- EXECUTION FINISHED ---');
+    Sys.println('--- STACK ---');
+    Sys.println(stack);
+    Sys.println('--- GLOBAL HEAP ---');
+    Sys.println(globalHeap.toString());
+    Sys.println('--- HEAP ---');
+    Sys.println(heap.toString());
+    Sys.println('--- MEMORY ---');
+    Sys.println(memory);
+    Sys.println('---------------------------');
+  }
+
+  public function fullReset() {
+    this.heap = new Map();
+    this.heapCounter = varCounter;
+    this.memory = new Vector<Float>(varCounter);
+    for (i in 0...varCounter) memory[i] = 0;
+  }
+
+  private function resolveObject(val:Dynamic):Null<Dynamic> {
+    var id = Std.int(val);
+
+    if (val == id) {
+      if (heap.exists(id)) return heap.get(id);
+      if (globalHeap.exists(id)) return globalHeap.get(id);
+    }
+
+    return null;
   }
 
   private function resolveClassSafe(className:String):Null<Class<Dynamic>> {

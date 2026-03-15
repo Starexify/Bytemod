@@ -3,11 +3,11 @@ package bytemod;
 class BytemodPrinter {
   public static function disassemble(code:Array<Int>):Void {
     if (code == null) {
-      trace('No bytecode found.');
+      Sys.println('No bytecode found.');
       return;
     }
 
-    trace('--- DISASSEMBLY ---');
+    Sys.println('------- DISASSEMBLY -------');
     var pc = 0;
     while (pc < code.length) {
       var addr:Int = pc; // Keep track of the current index
@@ -18,21 +18,18 @@ class BytemodPrinter {
 
       // Some opcodes have "arguments" following them in the array
       switch (op) {
-        case PUSH_CONST | GET_VAR | SET_VAR | PUSH_STR:
+        case PUSH_CONST | GET_VAR | SET_VAR | PUSH_STR | GET_PROPERTY | SET_PROPERTY | CALL_NATIVE | NEW:
           var arg = code[pc++];
           output += ' ($arg)';
         case PRINT:
           var count = code[pc++];
           var line = code[pc++];
           output += ' (args: $count, line: $line)';
-        case CALL_NATIVE | NEW:
-          var id = code[pc++];
-          output += ' ($id)';
 
         default: // Math ops like ADD, LT, etc., don't have extra arguments
       }
-      trace(output);
+      Sys.println(output);
     }
-    trace('---------------------------');
+    Sys.println('---------------------------');
   }
 }
