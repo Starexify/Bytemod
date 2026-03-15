@@ -76,7 +76,8 @@ class BytemodVM {
           stack[sp++] = memory[bytecode[pc++]];
 
         case SET_VAR:
-          memory[bytecode[pc++]] = stack[--sp];
+          var slot = bytecode[pc++];
+          memory[slot] = stack[--sp];
 
         case GET_PROPERTY:
           var constId = bytecode[pc++];
@@ -129,24 +130,33 @@ class BytemodVM {
             stack[sp++] = 0;
           }
 
+        case LT:
+          var b:Float = stack[--sp];
+          var a:Float = stack[--sp];
+          stack[sp++] = (a < b) ? 1 : 0;
+
         case ADD:
-          var b = stack[--sp];
-          var a = stack[--sp];
-          stack[sp++] = a + b;
+          var b:Dynamic = stack[--sp];
+          var a:Dynamic = stack[--sp];
+          if (a is String || b is String) {
+            stack[sp++] = Std.string(a) + Std.string(b);
+          } else {
+            stack[sp++] = (a : Float) + (b : Float);
+          }
 
         case SUB:
-          var b = stack[--sp];
-          var a = stack[--sp];
+          var b:Float = stack[--sp];
+          var a:Float = stack[--sp];
           stack[sp++] = a - b;
 
         case MUL:
-          var b = stack[--sp];
-          var a = stack[--sp];
+          var b:Float = stack[--sp];
+          var a:Float = stack[--sp];
           stack[sp++] = a * b;
 
         case DIV:
-          var b = stack[--sp];
-          var a = stack[--sp];
+          var b:Float = stack[--sp];
+          var a:Float = stack[--sp];
           stack[sp++] = a / b;
 
         case IS:
@@ -175,6 +185,16 @@ class BytemodVM {
 
           stack[sp++] = isMatch ? 1.0 : 0.0;
 
+        case JUMP:
+          pc = bytecode[pc++];
+
+        case JUMP_IF_FALSE:
+          var target = bytecode[pc++];
+          var condition = stack[--sp];
+          if (condition == 0 || condition == 0.0) {
+            pc = target;
+          }
+
         case PRINT:
           var argCount = bytecode[pc++];
           var lineNum = bytecode[pc++];
@@ -191,6 +211,7 @@ class BytemodVM {
 
         case CALL_NATIVE:
           var symbolId = bytecode[pc++];
+          var argCount = bytecode[pc++];
           var path = symbols[symbolId];
 
           if (nativeFunctions.exists(path)) {
@@ -216,6 +237,10 @@ class BytemodVM {
       }
     }
 
+    Sys.println('--- CONSTANTS ---');
+    Sys.println(constants);
+    Sys.println('--- SYMBOLS ---');
+    Sys.println(symbols);
     Sys.println('--- HEAP BEFORE ---');
     Sys.println(heap.toString());
     var current = this.heapCounter;

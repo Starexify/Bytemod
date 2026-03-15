@@ -21,6 +21,11 @@ class BytemodPrinter {
         case PUSH_CONST | GET_VAR | SET_VAR | PUSH_STR | GET_PROPERTY | SET_PROPERTY | CALL_NATIVE | NEW:
           var arg = code[pc++];
           output += ' ($arg)';
+        case JUMP | JUMP_IF_FALSE:
+          var target = code[pc++];
+          var tgAdd = "0x" + StringTools.hex(target, 4);
+          output += ' (target: $tgAdd)';
+
         case PRINT:
           var count = code[pc++];
           var line = code[pc++];

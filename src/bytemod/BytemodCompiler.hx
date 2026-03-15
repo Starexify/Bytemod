@@ -12,35 +12,41 @@ class BytemodCompiler {
 
   public function new() {}
 
-  function consume():String return tokens[i++].text;
+  function consume():String {
+    if (i >= tokens.length) return ""; // Safety
+    return tokens[i++].text;
+  }
 
-  function peek():String return tokens[i].text;
+  function peek():String {
+    if (i >= tokens.length) return ""; // Safety
+    return tokens[i].text;
+  }
 
   function lastLine():Int return tokens[i - 1].line;
 
   function parseStatement(bytes:Array<Int>):Void {
     var name = consume();
 
-    // Handle Types
+    if (name == "var") name = consume(); // eat var name
+
+    // Handling Types
     if (peek() == ":") {
       consume(); // eat ":"
-      // Eat everything until we hit an assignment or end of statement
-      while (i < tokens.length && peek() != "=" && peek() != ";" && peek() != ")") {
-        consume();
+      consume(); // eat the type name (e.g., "Int")
+
+      while (peek() == "." || peek() == "<") {
+        if (peek() == "<") {
+          // This is a simple way to skip generics;
+          // you'd need a loop to find the matching ">" for real ones
+          while (consume() != ">") {}
+        } else {
+          consume(); // eat "."
+          consume(); // eat next part
+        }
       }
-//      while (peek() == "." || peek() == "<") {
-//        if (peek() == "<") {
-//          // This is a simple way to skip generics;
-//          // you'd need a loop to find the matching ">" for real ones
-//          while (consume() != ">") {}
-//        } else {
-//          consume(); // eat "."
-//          consume(); // eat next part
-//        }
-//      }
     }
 
-    // Handle fields
+    // Handling fields
     if (peek() == ".") {
       bytes.push(OpCode.GET_VAR);
       bytes.push(getVarId(name));
@@ -52,7 +58,6 @@ class BytemodCompiler {
         if (peek() == "=") {
           consume(); // eat "="
           parseExpression(bytes); // Push the value (20)
-
           if (peek() == ";") consume();
 
           bytes.push(OpCode.SET_PROPERTY);
@@ -66,18 +71,20 @@ class BytemodCompiler {
       }
     }
 
-    // Handle assignment
+    // Handling normal variable initialization
     if (peek() == "=") {
-      consume(); // "="
+      consume(); // eat "="
       parseExpression(bytes);
-      if (peek() == ";") consume();
+      if (peek() == ";") consume(); // eat ";"
 
       bytes.push(OpCode.SET_VAR);
       bytes.push(getVarId(name));
+      return;
     }
   }
 
   public var nativeSymbols:Array<String> = [];
+
   function getNativeId(path:String):Int {
     var id = nativeSymbols.indexOf(path);
     if (id == -1) {
@@ -87,7 +94,7 @@ class BytemodCompiler {
     return id;
   }
 
-  function parseExpression(bytes:Array<Int>, isRoot:Bool = true) {
+  function parseExpression(bytes:Array<Int>) {
     var firstToken = consume();
 
     // Handling new class instancing
@@ -115,11 +122,9 @@ class BytemodCompiler {
 
     if (peek() == "(") {
       consume(); // eat "("
-
-      // Support arguments!
       var argCount = 0;
       while (peek() != ")") {
-        parseExpression(bytes, false);
+        parseExpression(bytes);
         argCount++;
         if (peek() == ",") consume();
       }
@@ -128,21 +133,33 @@ class BytemodCompiler {
       bytes.push(OpCode.CALL_NATIVE);
       bytes.push(getNativeId(path));
       bytes.push(argCount);
+      return;
     } else {
       pushValue(bytes, path);
     }
 
     // Handle Math and Operators (+, -, is, etc)
-    while (isRoot) {
+    while (true) {
       var op = peek();
-      if (op == "+" || op == "-" || op == "*" || op == "/") {
+      if (op == "+" || op == "-" || op == "*" || op == "/" || op == "<") {
         consume(); // eat the operator
-        parseExpression(bytes, false);
+
+        var nextToken = consume();
+        var nextPath = nextToken;
+        while (peek() == ".") {
+          consume();
+          nextPath += "." + consume();
+        }
+        pushValue(bytes, nextPath);
 
         if (op == "+") bytes.push(OpCode.ADD);
         else if (op == "-") bytes.push(OpCode.SUB);
         else if (op == "*") bytes.push(OpCode.MUL);
         else if (op == "/") bytes.push(OpCode.DIV);
+        else if (op == "<") {
+          trace("COMPILER: Pushing LT Opcode");
+          bytes.push(OpCode.LT);
+        }
       }
       else if (op == "is") {
         consume(); // eat "is"
@@ -173,14 +190,14 @@ class BytemodCompiler {
   public function compile(tokens:Array<Token>):CompileResult {
     this.variableMap = new Map();
     this.varCounter = 0;
+    this.constants = [];
+    this.nativeSymbols = [];
 
     this.tokens = tokens;
     this.i = 0;
     var result:CompileResult = {
       bytecode: [],
-      constants: [],
-      functions: new Map(),
-      nativeSymbols: this.nativeSymbols
+      functions: new Map()
     };
 
     while (i < tokens.length) {
@@ -211,18 +228,40 @@ class BytemodCompiler {
   }
 
   function parseExpr(bytes:Array<Int>):Void {
-    var t = peek();
+    var t = consume();
 
-    if (t == "var") {
-      consume(); // eat var
-      parseStatement(bytes);
-      if (peek() == ";") consume();
-    }
-    else if (t == ";") {
-      consume(); // Just a stray semicolon, skip it
+    if (t == "var" || t == ";") return;
+    else if (t == "while") {
+      trace("Before parseExpr");
+      BytemodPrinter.disassemble(bytes);
+      var loopStart = bytes.length;
+      if (peek() == "(") {
+        consume(); // eat "("
+        parseExpression(bytes);
+        if (peek() == ")") consume(); // eat ")"
+      }
+      trace("After parseExpr");
+      BytemodPrinter.disassemble(bytes);
+      trace(bytes);
+
+      bytes.push(OpCode.JUMP_IF_FALSE);
+      var jumpToExitIdx = bytes.length;
+      bytes.push(0); // Placeholder
+
+      if (peek() == "{") {
+        consume(); // eat "{"
+        while (peek() != "}" && peek() != "") {
+          parseExpr(bytes);
+        }
+        if (peek() == "}") consume(); // eat "}"
+      }
+
+      bytes.push(OpCode.JUMP);
+      bytes.push(loopStart);
+
+      bytes[jumpToExitIdx] = bytes.length;
     }
     else if (t == "trace") {
-      consume(); // eat "trace"
       var lineNum = lastLine();
       consume(); // skip "("
 
@@ -233,16 +272,18 @@ class BytemodCompiler {
         if (peek() == ",") consume();
       }
       consume(); // ")"
-      if (peek() == ";") consume();
+      consume(); // ";"
 
-      // Push the TRACE opcode followed by how many items to pop
+      // Push the PRINT opcode followed by how many items to pop
       bytes.push(OpCode.PRINT);
       bytes.push(argCount);
       bytes.push(lineNum);
     }
     else {
+      i--;
       parseStatement(bytes);
       if (peek() == ";") consume();
+      return;
     }
   }
 
@@ -329,5 +370,5 @@ class BytemodCompiler {
   }
 }
 
-typedef Token = { text:String, line:Int };
-typedef CompileResult = {bytecode:Array<Int>, constants:Array<Dynamic>, functions:Map<String, Array<Int>>, nativeSymbols:Array<String>}
+typedef Token = {text:String, line:Int};
+typedef CompileResult = {bytecode:Array<Int>, functions:Map<String, Array<Int>>}

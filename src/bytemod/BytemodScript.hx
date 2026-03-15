@@ -18,7 +18,7 @@ class BytemodScript {
 
     this.functions = result.functions;
 
-    vm.symbols = result.nativeSymbols;
+    vm.symbols = compiler.nativeSymbols;
     vm.varCounter = compiler.varCounter;
     vm.constants = compiler.constants;
   }
