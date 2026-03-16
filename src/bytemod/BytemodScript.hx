@@ -1,6 +1,6 @@
 package bytemod;
 
-import bytemod.BytemodCompiler;
+import bytemod.compiler.BytemodHaxeCompiler;
 
 class BytemodScript {
   public var scriptName:String;
@@ -13,8 +13,8 @@ class BytemodScript {
     this.fileName = name;
     this.vm = new BytemodVM();
 
-    final compiler = new BytemodCompiler();
-    final result:CompileResult = compiler.compile(BytemodCompiler.tokenize(code));
+    final compiler = new BytemodHaxeCompiler();
+    final result:CompileResult = compiler.compile(BytemodHaxeCompiler.tokenize(code));
 
     this.functions = result.functions;
 

@@ -1,0 +1,64 @@
+constants:
+  STRING ClassName
+  STRING InterfaceName
+  STRING InterfaceName2
+  STRING ParentClass
+  STRING com.pkg.
+  STRING varOne
+  STRING varTwo
+  STRING functionOne
+  OBJECT [@deprecated => "smth"]
+  STRING EnumName
+  STRING EnumField1
+  STRING EnumField2
+  STRING Getter1
+  STRING Setter1
+  TYPE Int // #50
+  TYPE Float
+  TYPE String
+  TYPE Void // #53
+  INT 10 // #60
+  EXTERN "std.Math" // #101
+  EXTERN "script.OtherScriptedClass" // #102
+
+class:
+  id: #0
+  interfaces: [#1, #2]
+  name: #3
+  extends: #4
+  pkg: #5
+  fields:
+    - name: #6
+      flags: 0x01
+      type: #50
+      getter: #15
+      setter: #16
+    - name: #7
+      flags: 0x02
+      type: #52
+  functions:
+    - name: #8
+      metadata: #9
+      flags: 0x01
+      args:
+        - { type: #51, optional: true, default: #60 }
+      ret: #53
+      start_address: 0x0A2F
+
+enum:
+  id: #10
+  fields:
+    - name: #11
+    - name: #12
+      args: [#50, #51]
+
+Bytecode:
+  0x0001 PUSH_CONST #101
+  0x0002 PUSH_STR #100
+  0x0003 JUMP 0x0006
+  0x0004 NEW #102
+
+// For Comments
+/* For
+  Multiline
+  Comments */

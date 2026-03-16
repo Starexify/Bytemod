@@ -42,7 +42,7 @@ enum abstract OpCode(Int) from Int to Int {
       case IS: "IS";
       case JUMP: "JUMP";
       case JUMP_IF_FALSE: "JUMP_IF_FALSE";
-      case JUMP_IF_TRUE: "JUMP_IF_FALSE";
+      case JUMP_IF_TRUE: "JUMP_IF_TRUE";
       case RETURN: "RETURN";
       case PRINT: "PRINT";
       case CALL_NATIVE: "CALL_NATIVE";

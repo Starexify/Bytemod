@@ -1,17 +1,17 @@
-package bytemod;
+package bytemod.compiler;
 
 using StringTools;
 
-class BytemodCompiler {
+class BytemodHaxeCompiler {
   public var varMap:Map<String, Int> = new Map();
   public var varCounter:Int = 0;
+
   public var staticMap:Map<String, Int> = new Map();
   public var staticCounter:Int = 0;
   public var constants:Array<Dynamic> = [];
+  public var finalIndexes:Map<Int, Bool> = new Map();
 
   var hasError:Bool = false;
-
-  public var finalIndexes:Map<Int, Bool> = new Map();
 
   var tokens:Array<Token>;
   var i:Int = 0;
@@ -48,14 +48,14 @@ class BytemodCompiler {
 
         if (peek() == "=") {
           consume(); // eat "="
-          parseExpression(bytes); // Push the value (20)
+          parseExpression(bytes);
           if (peek() == ";") consume();
 
           bytes.push(OpCode.SET_PROPERTY);
           bytes.push(getConstantId(field));
           return;
         }
-        else { // Handle chained fields
+        else { // Handle chained fields (Class.field1.field2)
           bytes.push(OpCode.GET_PROPERTY);
           bytes.push(getConstantId(field));
         }
@@ -66,19 +66,18 @@ class BytemodCompiler {
     if (peek() == "=") {
       consume(); // eat "="
 
-      // 1. Get the ID first so we can check it
       var id = -1;
       var isStatic = staticMap.exists(name);
 
       if (!isStatic) {
         id = getVarId(name);
-        // CHECK: If it's already in finalIndexes, this is an illegal re-assignment
+        // Check if it's a final, report error and stop compiling if so.
         if (finalIndexes.exists(id)) {
           BytemodErrorHandler.report(CompileError('Cannot reassign final variable "$name"'), "testTwo.hx", lastLine());
           hasError = true;
         }
 
-        // If this is the declaration (e.g., final j = 1), mark it now
+        // If this is the declaration, mark it now
         if (isFinal) finalIndexes.set(id, true);
       }
 
