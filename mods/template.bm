@@ -1,0 +1,36 @@
+constants:
+  ["ClassName", "InterfaceName", "InterfaceName2", "ParentClass", "com.pkg.", "varOne", "varTwo", 10, Class, 1.1]
+
+class:
+  id: 0
+  interfaces: [#1, #2]
+  name: #3
+  extends: #4
+  pkg: #5
+  fields:
+    - name: #6
+      flags: 0x01
+      type: #50
+      getter: #15
+      setter: #16
+    - name: #7
+      flags: 0x02
+      type: #52
+  functions:
+    - name: #8
+      metadata: #9
+      flags: 0x01
+      args:
+        - { type: #51, optional: true, default: #60 }
+      ret: #53
+      start_address: 0x0A2F
+
+enum:
+  id: 0
+  name: #11
+  fields:
+    - name: #11
+    - name: #12
+      args: [#50, #51]
+
+Bytecode: [0, 101, 1, 100, 2, 6, 3, 102]

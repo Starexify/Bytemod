@@ -1,6 +1,6 @@
 package bytemod;
 
-import bytemod.compiler.BytemodHaxeCompiler;
+import bytemod.deprecations.BytemodHaxeCompiler;
 
 class BytemodScript {
   public var scriptName:String;

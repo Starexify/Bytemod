@@ -1,7 +1,8 @@
-package bytemod.compiler;
+package bytemod.deprecated;
 
 using StringTools;
 
+@:deprecated("Deprecated in favor of a new BytemodHaxeCompiler")
 class BytemodHaxeCompiler {
   public var varMap:Map<String, Int> = new Map();
   public var varCounter:Int = 0;

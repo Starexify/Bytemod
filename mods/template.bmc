@@ -9,6 +9,7 @@ constants:
   STRING functionOne
   OBJECT [@deprecated => "smth"]
   STRING EnumName
+  STRING EnumName
   STRING EnumField1
   STRING EnumField2
   STRING Getter1
@@ -22,10 +23,10 @@ constants:
   EXTERN "script.OtherScriptedClass" // #102
 
 class:
-  id: #0
-  interfaces: [#1, #2]
+  id: 0
   name: #3
   extends: #4
+  interfaces: [#1, #2]
   pkg: #5
   fields:
     - name: #6
@@ -38,7 +39,7 @@ class:
       type: #52
   functions:
     - name: #8
-      metadata: #9
+      metadata: [#9]
       flags: 0x01
       args:
         - { type: #51, optional: true, default: #60 }
@@ -46,7 +47,8 @@ class:
       start_address: 0x0A2F
 
 enum:
-  id: #10
+  id: 0
+  name: #11
   fields:
     - name: #11
     - name: #12

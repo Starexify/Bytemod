@@ -6,6 +6,16 @@ package bytemod.compiler;
  * @note This is not a enforced for all the compilers, this is only for templates!
  */
 interface IBytemodCompiler {
+
+  // Fields used during the compilation process
+  private var constants:Array<Dynamic> = [];
+  private var classes:Array<ClassDefinition> = [];
+  private var enums:Array<EnumDefinition> = [];
+  private var bytecode:Array<Int> = [];
+
+  private var classByName:Map<String, Int> = [];
+  private var constantIDs:Map<Dynamic, Int> = [];
+
   /**
    * Function used for compiling
    *
@@ -19,6 +29,8 @@ interface IBytemodCompiler {
    *
    *  Example:
    *
+   * `tokens = ["10", "+", "20"] -> [10, 20]`
+   *
    * @param tokens An array of tokens from the file contents
    * @return An array of constants
    */
@@ -28,6 +40,24 @@ interface IBytemodCompiler {
    * Parses a class
    *
    *  Example:
+   * ```
+   * package com.example;
+   * @:meta
+   * class ExampleClass extends ParentClass implements IClass {
+   *   ...
+   * }
+   * ```
+   * Output:
+   * ```
+   * class:
+   *   id: 0
+   *   metadata: [#ID]
+   *   name: #ID
+   *   extends: #ID
+   *   interfaces: [#ID]
+   *   flags: 0x01
+   *   pkg: #ID
+   * ```
    *
    * @param tokens An array of tokens from the file contents
    * @return The class properties
@@ -38,6 +68,22 @@ interface IBytemodCompiler {
    * Parses an enum
    *
    *  Example:
+   * ```
+   * enum ExampleEnum {
+   *   Field;
+   *   FieldWithArgs(a:Int, b:Bool);
+   * }
+   * ```
+   * Output:
+   * ```
+   * enum:
+   *   id: #ID
+   *   name: #ID
+   *     fields:
+   *       - name: #ID
+   *       - name: #ID
+   *         args: [#IntID, #BoolID]
+   * ```
    *
    * @param tokens An array of tokens from the file contents
    * @return The enum properties
@@ -48,7 +94,12 @@ interface IBytemodCompiler {
    * Parses a field
    *
    *  Example:
-   *
+   * ```
+   * @:meta(0)
+   * static var field = true;` -> - name: #ID
+   *                                flags: 0x04
+   *                                meta: [#ID]
+   * ```
    * @param tokens An array of tokens from the file contents
    * @return The field properties
    */
@@ -59,7 +110,8 @@ interface IBytemodCompiler {
    *
    *  Example:
    * ```
-   * public static function test() {
+   * @:meta(0)
+   * public static function test():Void {
    *   ...
    * }
    * ```
@@ -67,7 +119,9 @@ interface IBytemodCompiler {
    * ```
    * function:
    *   - name: #ID
+   *     metadata: [#ID]
    *     flags: 0x05
+   *     ret: #VoidID
    *     start_address: 0x0000
    * ```
    *
@@ -75,18 +129,6 @@ interface IBytemodCompiler {
    * @return The function properties
    */
   public function parseFunction(tokens:Array<Token>):FunctionDefinition;
-
-  /**
-   * Parses bytecode from stringified bytecode format.
-   *
-   *  Example:
-   *
-   * `0x0001 PUSH #ID -> [0, <#ID>]`
-   *
-   * @param tokens An array of tokens from the file contents
-   * @return The instructions in array of integers that we can interpret later
-   */
-  public function parseBytecode(tokens:Array<Token>):Array<Int>;
 
   /**
    * Parses and handles statements
@@ -119,9 +161,20 @@ interface IBytemodCompiler {
    * `1 + 1 -> [0, 1, 0, 1, 10]`
    *
    * @param tokens An array of tokens from the file contents
-   * @return The
    */
   public function parseExpression(tokens:Array<Token>):Void;
+
+  /**
+   * Parses bytecode from stringified bytecode format.
+   *
+   *  Example:
+   *
+   * `0x0001 PUSH #ID -> [0, <#ID>]`
+   *
+   * @param tokens An array of tokens from the file contents
+   * @return The instructions in array of integers that we can interpret later
+   */
+  public function parseBytecode(tokens:Array<Token>):Array<Int>;
 
   /**
    * Helper function for tokenizing the contents of a script file.
@@ -139,36 +192,60 @@ typedef CompileResult = {
   bytecode:Array<Int>
 }
 
-typedef ClassDefinition = {
+typedef ObjectDefinition = {
   id:Int,
   nameID:Int,
+  pkg:Int
+}
+
+typedef ClassDefinition = {
+  >ObjectDefinition,
   extendsID:Int,
   interfaces:Array<Int>,
   fields:Array<FieldDefinition>,
   functions:Array<FunctionDefinition>,
+  metadata: Array<MetadataEntry>,
   flags:Int
 }
 
 typedef EnumDefinition = {
-  id:Int,
+  >ObjectDefinition,
+  constructors:Array<EnumConstructor>
+}
+
+typedef EnumConstructor = {
   nameID:Int,
-  fields:Array<{nameID:Int, args:Array<Int>}>
+  index:Int,
+  args:Array<Int>
 }
 
 typedef FunctionDefinition = {
+  metadata: Array<MetadataEntry>,
   nameID:Int,
   startAddress:Int,
   flags:Int,
-  args:Array<{typeID:Int, opt:Bool, defaultID:Null<Int>}>,
+  args:Array<ArgumentDefinition>,
   retID:Int
 }
 
+typedef ArgumentDefinition = {
+  typeID:Int,
+  opt:Bool,
+  defaultID:Null<Int>
+}
+
 typedef FieldDefinition = {
+  metadata: Array<MetadataEntry>,
   nameID:Int,
   typeID:Int,
   flags:Int,
   getterID:Null<Int>,
   setterID:Null<Int>
+}
+
+typedef MetadataEntry = {
+  nameID:Int,
+  params:Array<Int>
 }
 
 typedef Token = {text:String, line:Int}
