@@ -6,8 +6,8 @@ class Main {
     Bytemod.init();
 
     //while (true) {
-      BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("otherFunc"));
-      Bytemod.scriptCache.get("testTwo.hx").callFunction("otherFunc");
+//      BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("otherFunc"));
+//      Bytemod.scriptCache.get("testTwo.hx").callFunction("otherFunc");
 
 //      BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("anotherFunc"));
 //      Bytemod.scriptCache.get("testTwo.hx").callFunction("anotherFunc");
@@ -39,6 +39,7 @@ class TestClass {
   public var d(null, never):Int;
 
   public var score(default, set):Int;
+
   public function set_score(v) {
     this.score = v;
     return v;

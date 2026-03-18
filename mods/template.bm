@@ -1,5 +1,4 @@
-constants:
-  ["ClassName", "InterfaceName", "InterfaceName2", "ParentClass", "com.pkg.", "varOne", "varTwo", 10, Class, 1.1]
+constants: ["ClassName", "InterfaceName", "InterfaceName2", "ParentClass", "com.pkg.", "varOne", "varTwo", 10, Class, 1.1]
 
 class:
   id: 0
@@ -33,4 +32,4 @@ enum:
     - name: #12
       args: [#50, #51]
 
-Bytecode: [0, 101, 1, 100, 2, 6, 3, 102]
+bytecode: [0, 101, 1, 100, 2, 6, 3, 102]

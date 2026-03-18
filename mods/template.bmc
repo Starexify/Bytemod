@@ -54,7 +54,7 @@ enum:
     - name: #12
       args: [#50, #51]
 
-Bytecode:
+bytecode:
   0x0001 PUSH_CONST #101
   0x0002 PUSH_STR #100
   0x0003 JUMP 0x0006

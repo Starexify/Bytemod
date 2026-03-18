@@ -408,38 +408,6 @@ class BytemodHaxeCompiler {
     constants.push(value);
     return constants.length - 1;
   }
-
-  /**
-   * Helper function for tokenizing the contents of a string.
-   *
-   * @param code The contents of the script
-   * @return An array of tokens
-   */
-  public static function tokenize(code:String):Array<Token> {
-    var commentRegex:EReg = ~/"[^"]*"|(\/\/[^\n]*)|(\/\*[\s\S]*?\*\/)/g;
-    code = commentRegex.map(code, (e) -> {
-      var match = e.matched(0);
-      if (match.startsWith('"')) return match; // Keep strings
-      return ""; // Replace comments with nothing
-    });
-
-    var tokens = [];
-    var lines = code.split("\n");
-
-    var r:EReg = ~/"[^"]*"|[0-9.]+|[a-zA-Z_]+|==|<=|>=|<|>|is|\+|\-|\*|\/|[\(\)\{\};=,.<>:]/g;
-
-    for (i in 0...lines.length) {
-      var lineText = lines[i];
-      var pos = 0;
-      while (r.matchSub(lineText, pos)) {
-        var match = r.matched(0);
-        tokens.push({ text: match, line: i + 1 });
-        var p = r.matchedPos();
-        pos = p.pos + p.len;
-      }
-    }
-    return tokens;
-  }
 }
 
 typedef Token = {text:String, line:Int};

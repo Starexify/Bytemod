@@ -1,6 +1,7 @@
 package bytemod;
 
-import bytemod.deprecations.BytemodHaxeCompiler;
+import bytemod.compiler.BytemodCompiler;
+import bytemod.compiler.IBytemodCompiler;
 
 class BytemodScript {
   public var scriptName:String;
@@ -9,22 +10,16 @@ class BytemodScript {
 
   public var functions:Map<String, Array<Int>> = new Map();
 
-  public function new(name:String, code:String) {
+  public function new(name:String, code:String, fileType:String) {
     this.fileName = name;
     this.vm = new BytemodVM();
 
-    final compiler = new BytemodHaxeCompiler();
-    final result:CompileResult = compiler.compile(BytemodHaxeCompiler.tokenize(code));
+    final compiler:BytemodCompiler = switch (fileType) {
+      case "Bytemod": new BytemodCompiler();
+      default: throw "Unsupported script file type: " + fileType;
+    }
 
-    this.functions = result.functions;
-
-    vm.symbols = compiler.nativeSymbols;
-    vm.varCounter = compiler.varCounter;
-    vm.constants = compiler.constants;
-  }
-
-  public function callFunction(funcName:String):Void {
-    if (functions.exists(funcName)) vm.execute(functions.get(funcName));
-    else trace('Function with name $funcName() doesn\'t exist !');
+    compiler.tokenize(code);
+    final result:CompileResult = compiler.compile();
   }
 }

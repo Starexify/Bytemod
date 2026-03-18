@@ -27,11 +27,11 @@ class Bytemod {
       var path = Path.join([folder, item]);
 
       if (FileSystem.isDirectory(path)) scanMods(path);
-      else if (StringTools.endsWith(item, ".hx")) {
+      else if (StringTools.endsWith(item, ".bm")) {
         var content = File.getContent(path);
-        var script = new BytemodScript(item, content);
+        var script = new BytemodScript(item, content, "Bytemod");
         scriptCache.set(item, script);
-        trace('Loaded mod: $item');
+        trace('Loaded script file: $item');
       }
     }
   }

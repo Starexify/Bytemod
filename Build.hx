@@ -40,7 +40,8 @@ class Build {
       Sys.command("haxe", [
         "-cp", "src",
         "-main", "Main",
-        "-hl", "build/hlc/main.c"
+        "-hl", "build/hlc/main.c",
+        //"--macro", "bytemod.macro.ImportGetterMacro.trackGenerated()" // If macros without build are ever needed add ts
       ]);
 
       log("Compiling Native...");

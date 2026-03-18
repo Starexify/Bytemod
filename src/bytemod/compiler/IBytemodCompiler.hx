@@ -8,13 +8,15 @@ package bytemod.compiler;
 interface IBytemodCompiler {
 
   // Fields used during the compilation process
-  private var constants:Array<Dynamic> = [];
-  private var classes:Array<ClassDefinition> = [];
-  private var enums:Array<EnumDefinition> = [];
-  private var bytecode:Array<Int> = [];
+  private var tokens:Array<Token>;
+  private var cursor:Int;
 
-  private var classByName:Map<String, Int> = [];
-  private var constantIDs:Map<Dynamic, Int> = [];
+  private var constants:Array<Dynamic>;
+  private var classes:Array<ClassDefinition>;
+  private var enums:Array<EnumDefinition>;
+  private var bytecode:Array<Int>;
+
+  private var constantIDs:Map<Dynamic, Int>;
 
   /**
    * Function used for compiling
@@ -22,7 +24,7 @@ interface IBytemodCompiler {
    * @param tokens An array of tokens from the file contents
    * @return The result of the compilation
    */
-  public function compile(tokens:Array<Token>):CompileResult;
+  public function compile(?tokens:Array<Token>):CompileResult;
 
   /**
    * Parses a constant from a string of constants.
@@ -34,7 +36,7 @@ interface IBytemodCompiler {
    * @param tokens An array of tokens from the file contents
    * @return An array of constants
    */
-  public function parseConstants(tokens:Array<Token>):Array<Dynamic>;
+  public function parseConstants(?tokens:Array<Token>):Array<Dynamic>;
 
   /**
    * Parses a class
@@ -62,7 +64,7 @@ interface IBytemodCompiler {
    * @param tokens An array of tokens from the file contents
    * @return The class properties
    */
-  public function parseClass(tokens:Array<Token>):ClassDefinition;
+  public function parseClass(?tokens:Array<Token>):ClassDefinition;
 
   /**
    * Parses an enum
@@ -88,7 +90,7 @@ interface IBytemodCompiler {
    * @param tokens An array of tokens from the file contents
    * @return The enum properties
    */
-  public function parseEnum(tokens:Array<Token>):EnumDefinition;
+  public function parseEnum(?tokens:Array<Token>):EnumDefinition;
 
   /**
    * Parses a field
@@ -103,7 +105,7 @@ interface IBytemodCompiler {
    * @param tokens An array of tokens from the file contents
    * @return The field properties
    */
-  public function parseField(tokens:Array<Token>):FieldDefinition;
+  public function parseField(?tokens:Array<Token>):FieldDefinition;
 
   /**
    * Parses a function
@@ -128,7 +130,7 @@ interface IBytemodCompiler {
    * @param tokens An array of tokens from the file contents
    * @return The function properties
    */
-  public function parseFunction(tokens:Array<Token>):FunctionDefinition;
+  public function parseFunction(?tokens:Array<Token>):FunctionDefinition;
 
   /**
    * Parses and handles statements
@@ -139,7 +141,7 @@ interface IBytemodCompiler {
    *
    * @param tokens An array of tokens from the file contents
    */
-  public function parseStatement(tokens:Array<Token>):Void;
+  public function parseStatement(?tokens:Array<Token>):Void;
 
   /**
    * Parses types
@@ -151,7 +153,7 @@ interface IBytemodCompiler {
    * @param tokens An array of tokens from the file contents
    * @return The #ID from the constants map
    */
-  public function parseType(tokens:Array<Token>):Int;
+  public function parseType(?tokens:Array<Token>):Int;
 
   /**
    * Parses logic and math operations to the bytecode stack.
@@ -162,7 +164,7 @@ interface IBytemodCompiler {
    *
    * @param tokens An array of tokens from the file contents
    */
-  public function parseExpression(tokens:Array<Token>):Void;
+  public function parseExpression(?tokens:Array<Token>):Void;
 
   /**
    * Parses bytecode from stringified bytecode format.
@@ -174,7 +176,7 @@ interface IBytemodCompiler {
    * @param tokens An array of tokens from the file contents
    * @return The instructions in array of integers that we can interpret later
    */
-  public function parseBytecode(tokens:Array<Token>):Array<Int>;
+  public function parseBytecode(?tokens:Array<Token>):Array<Int>;
 
   /**
    * Helper function for tokenizing the contents of a script file.
@@ -204,7 +206,7 @@ typedef ClassDefinition = {
   interfaces:Array<Int>,
   fields:Array<FieldDefinition>,
   functions:Array<FunctionDefinition>,
-  metadata: Array<MetadataEntry>,
+  metadata:Array<MetadataEntry>,
   flags:Int
 }
 
@@ -220,7 +222,7 @@ typedef EnumConstructor = {
 }
 
 typedef FunctionDefinition = {
-  metadata: Array<MetadataEntry>,
+  metadata:Array<MetadataEntry>,
   nameID:Int,
   startAddress:Int,
   flags:Int,
@@ -235,7 +237,7 @@ typedef ArgumentDefinition = {
 }
 
 typedef FieldDefinition = {
-  metadata: Array<MetadataEntry>,
+  metadata:Array<MetadataEntry>,
   nameID:Int,
   typeID:Int,
   flags:Int,
