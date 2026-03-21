@@ -21,7 +21,16 @@ class BytemodCompiler implements IBytemodCompiler {
   public function new() {}
 
   public function compile(?tokens:Array<Token>):CompileResult {
-    return null;
+    return {
+      success: false,
+      packageName: null,
+      constants: [],
+      classes: [],
+      enums: [],
+      bytecode: [],
+      importMap: new Map(),
+      usingList: []
+    };
   }
 
   public function parseConstants(?tokens:Array<Token>):Array<Dynamic> {
@@ -50,7 +59,9 @@ class BytemodCompiler implements IBytemodCompiler {
     return 0;
   }
 
-  public function parseExpression(?tokens:Array<Token>):Void {}
+  public function parseExpression(?tokens:Array<Token>):Int {
+    return 0;
+  }
 
   public function parseBytecode(?tokens:Array<Token>):Array<Int> {
     return null;

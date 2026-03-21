@@ -10,6 +10,12 @@ class TestClass {
 
   @testfinal()
   final TEST_FINAL = 100;
+
+  function testOneLiner():Bool return true;
+
+  static function testFunc():Bool {
+    return false;
+  }
 }
 
 enum TestEnum {

@@ -24,7 +24,7 @@ class BytemodScript {
 
     compiler.tokenize(code);
     this.data = compiler.compile();
-    trace(data);
-    //trace(data?.importMap.toString());
+
+    vm.constants = data.constants;
   }
 }

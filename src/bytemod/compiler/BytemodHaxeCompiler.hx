@@ -20,6 +20,10 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   private var importMap:Map<String, String>;
   private var usingList:Array<String>;
 
+  private var registerCount:Int = 0;
+
+  private inline function nextRegister():Int return registerCount++;
+
   // Map used to check the types for collision
   private var definedTypes:Map<String, String>;
 
@@ -40,7 +44,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   }
 
   public function new(?fileName:String) {
-    this.fileName = fileName ?? "unknown";
+    this.fileName = fileName ?? 'unknown';
     resetImportMap();
   }
 
@@ -56,22 +60,22 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     resetImportMap();
     this.definedTypes = new Map();
     this.usingList = [];
-    this.packageName = "";
+    this.packageName = '';
 
     try {
       // Parse the header of the file (imports, usings, packages)
       while (cursor < this.tokens.length) {
         var t = peek();
-        if (t == "import" || t == "using" || t == "package") parseHeader();
+        if (t == 'import' || t == 'using' || t == 'package') parseHeader();
         else break;
       }
 
       // Parse the objects of the file (class, enum) (excluding fake classes such as interfaces, abstracts and typedefs)
       while (cursor < this.tokens.length) {
-        if (match(";")) continue;
+        if (match(';')) continue;
 
         var meta:Array<MetadataEntry> = [];
-        while (cursor < this.tokens.length && peek().startsWith("@")) {
+        while (cursor < this.tokens.length && peek().startsWith('@')) {
           meta.push(parseMetadata());
         }
 
@@ -79,16 +83,16 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
         var t = peek();
         switch (t) {
-          case "class": classes.push(parseClass(meta));
-          case "enum": enums.push(parseEnum(meta));
-          case "interface", "typedef", "abstract": skipTypeDefinition();
+          case 'class': classes.push(parseClass(meta));
+          case 'enum': enums.push(parseEnum(meta));
+          case 'interface', 'typedef', 'abstract': skipTypeDefinition();
           default: fatal('Unexpected token "$t" at top level.');
         }
       }
       return createResult(true);
 
     } catch (e:String) {
-      if (e == "__BYTEMOD_FATAL__") return createResult(false);
+      if (e == '__BYTEMOD_FATAL__') return createResult(false);
       // Throw the actual haxe error if it's not a compilation error.
       throw e;
     }
@@ -108,18 +112,18 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   }
 
   public function parseHeader():Void {
-    var t = read(); // eat "package" "import" or "using"
-    var path = "";
+    var t = read(); // eat 'package' 'import' or 'using'
+    var path = '';
 
-    while (cursor < tokens.length && peek() != ";") {
+    while (cursor < tokens.length && peek() != ';') {
       path += read();
     }
 
-    expect(";");
+    expect(';');
 
     switch (t) {
       case 'import':
-        var parts = path.split(".");
+        var parts = path.split('.');
         var alias = parts[parts.length - 1];
         importMap.set(alias, path);
 
@@ -127,8 +131,8 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
         usingList.push(path);
 
       case 'package':
-        if (this.packageName != "") {
-          fatal("Only one package declaration is allowed.");
+        if (this.packageName != '') {
+          fatal('Only one package declaration is allowed.');
         }
         packageName = path;
     }
@@ -139,10 +143,10 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   }
 
   public function parseClass(meta:Array<MetadataEntry>):ClassDefinition {
-    expect("class");
+    expect('class');
 
     var name = read();
-    checkDuplicateType(name, "class");
+    checkDuplicateType(name, 'class');
     var nameID = getConstantID(name);
     var pkgID = getConstantID(this.packageName);
 
@@ -158,57 +162,60 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       flags: 0
     };
 
-    expect("{");
-    while (cursor < tokens.length && peek() != "}") {
-      if (match(";")) continue;
+    expect('{');
+    while (cursor < tokens.length && peek() != '}') {
+      if (match(';')) continue;
 
       var memberMeta:Array<MetadataEntry> = [];
-      while (cursor < tokens.length && peek().startsWith("@")) {
+      while (cursor < tokens.length && peek().startsWith('@')) {
         memberMeta.push(parseMetadata());
       }
 
       var flags:Modifier = Modifier.None;
-      var parsedModifs = false;
-      while (cursor < tokens.length && !parsedModifs) {
+      var collecting = true;
+      while (cursor < tokens.length && collecting) {
         var t = peek();
         switch (t) {
-          case "public": read(); flags = flags.set(Modifier.Public);
-          case "private": read(); flags = flags.set(Modifier.Private);
-          case "static": read(); flags = flags.set(Modifier.Static);
-          case "inline": read(); flags = flags.set(Modifier.Inline);
-          case "dynamic": read(); flags = flags.set(Modifier.Dynamic);
-          case "override": read();
-          case "final":
+          case 'public': read(); flags = flags.set(Modifier.Public);
+          case 'private': read(); flags = flags.set(Modifier.Private);
+          case 'static': read(); flags = flags.set(Modifier.Static);
+          case 'inline': read(); flags = flags.set(Modifier.Inline);
+          case 'dynamic': read(); flags = flags.set(Modifier.Dynamic);
+          case 'override': read();
+          case 'final':
             read();
             flags = flags.set(Modifier.Final);
-
             var next = peek();
-            if (next != "var" && next != "function") {
+            if (next != 'var' && next != 'function') {
               classDef.fields.push(parseField(memberMeta, flags));
-              parsedModifs = true;
+              collecting = false;
             }
-          case "var":
+
+          case 'var':
             classDef.fields.push(parseField(memberMeta, flags));
-            parsedModifs = true;
-          case "function":
+            collecting = false;
+
+          case 'function':
             classDef.functions.push(parseFunction(memberMeta, flags));
-            parsedModifs = true;
-          default: break;
+            collecting = false;
+
+          default:
+            if (flags != Modifier.None) {
+              classDef.fields.push(parseField(memberMeta, flags));
+            }
+            collecting = false;
         }
       }
-
-      // TODO: Add var/function parsing here
-      read();
     }
-    expect("}");
+    expect('}');
 
     return classDef;
   }
 
   public function parseEnum(meta:Array<MetadataEntry>):EnumDefinition {
-    expect("enum");
+    expect('enum');
     var name = read();
-    checkDuplicateType(name, "enum");
+    checkDuplicateType(name, 'enum');
     var nameID = getConstantID(name);
     var pkgID = getConstantID(this.packageName);
 
@@ -220,34 +227,159 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       constructors: []
     };
 
-    expect("{");
-    while (cursor < tokens.length && peek() != "}") {
+    expect('{');
+    while (cursor < tokens.length && peek() != '}') {
       // TODO: Add fields parsing here
       read();
     }
-    expect("}");
+    expect('}');
 
     return enumDef;
   }
 
   public function parseField(meta:Array<MetadataEntry>, flags:Modifier):VariableDefinition {
-    return null;
+    match('var'); // check 'var'
+
+    var name = read();
+    var nameID = getConstantID(name);
+    var typeID:Int = -1;
+
+    if (match(':')) typeID = parseType();
+
+    // Parse the value
+    if (match('=')) {
+      while (cursor < tokens.length && peek() != ';') {
+        read();
+      }
+    }
+
+    expect(';');
+
+    return {
+      metadata: meta,
+      nameID: nameID,
+      flags: flags,
+      typeID: typeID,
+      getterID: null,
+      setterID: null
+    };
   }
 
   public function parseFunction(meta:Array<MetadataEntry>, flags:Modifier):FunctionDefinition {
-    return null;
+    expect('function');
+
+    var name = read();
+    var nameID = getConstantID(name);
+    var args:Array<ArgumentDefinition> = [];
+    var returnTypeID:Int = -1;
+
+    // Parse Arguments (a:Int, b:String)
+    expect('(');
+    while (cursor < tokens.length && peek() != ')') {
+      var isOpt = match('?');
+
+      var argName = read();
+      var argNameID = getConstantID(argName);
+      var argTypeID = -1;
+      var defaultID = -1;
+
+      if (match(':')) argTypeID = parseType();
+      if (match('=')) {
+        isOpt = true;
+        var defaultValue = read();
+        defaultID = getConstantID(defaultValue);
+      }
+
+      args.push({
+        nameID: argNameID,
+        typeID: argTypeID,
+        opt: isOpt,
+        defaultID: defaultID
+      });
+
+      if (peek() == ',') read(); // eat ','
+    }
+    expect(')');
+
+    if (match(':')) returnTypeID = parseType();
+
+    var startAddress = this.bytecode.length;
+    this.registerCount = 0;
+
+    if (peek() == '{') {
+      parseFunctionBody(true);
+    }
+    else if (peek() != ';') {
+      parseFunctionBody(false);
+    }
+    else {
+      match(';');
+      startAddress = -1;
+    }
+
+    trace(startAddress);
+    trace(bytecode);
+    return {
+      metadata: meta,
+      nameID: nameID,
+      flags: flags,
+      startAddress: startAddress,
+      args: args,
+      retID: returnTypeID
+    };
+  }
+
+  public function parseFunctionBody(isBlock:Bool) {
+    if (isBlock) {
+      expect('{');
+      // Parse block later
+      while (cursor < tokens.length && peek() != "}") {
+        if (match(";")) continue;
+        parseStatement();
+      }
+      expect('}');
+    }
+    else {
+      parseStatement();
+    }
   }
 
   public function parseStatement(?tokens:Array<Token>):Void {
+    if (match("return")) {
+      var reg = parseExpression();
 
+      // [OpCode.RET, Register]
+      this.bytecode.push(OpCode.RET);
+      this.bytecode.push(reg); // Pushes 0
+
+      match(";");
+      return;
+    }
+
+    // Nothing else is yet allowed so we just read it forever untill reaching the end of the field/function
+    while (cursor < this.tokens.length && peek() != ';' && peek() != '}') {
+      read();
+    }
   }
 
   public function parseType(?tokens:Array<Token>):Int {
-    return 0;
+    var typeName = read();
+    return getConstantID(typeName);
   }
 
-  public function parseExpression(?tokens:Array<Token>):Void {
+  public function parseExpression(?tokens:Array<Token>):Int {
+    var t = read();
+    var targetReg = nextRegister();
 
+    if (t == "true") {
+      this.bytecode.push(OpCode.LDI);
+      this.bytecode.push(targetReg);
+      this.bytecode.push(1);
+
+      return targetReg;
+    }
+
+    return targetReg;
   }
 
   public function parseBytecode(?tokens:Array<Token>):Array<Int> {
@@ -260,12 +392,12 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
     var args:Array<String> = [];
 
-    if (match("(")) {
-      while (cursor < tokens.length && peek() != ")") {
+    if (match('(')) {
+      while (cursor < tokens.length && peek() != ')') {
         args.push(read());
-        if (peek() == ",") read();
+        if (peek() == ',') read();
       }
-      expect(")");
+      expect(')');
     }
 
     return {
@@ -283,11 +415,11 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   }
 
   /**
-   * Function that returns the ID of a constant.
-   *
-   * @param value The value of the constant
-   * @return The ID of the constant if it exists already, or a new constant ID if newly added.
-   */
+     * Function that returns the ID of a constant.
+     *
+     * @param value The value of the constant
+     * @return The ID of the constant if it exists already, or a new constant ID if newly added.
+     */
   private function getConstantID(value:Dynamic):Int {
     if (this.constantIDs.exists(value)) return this.constantIDs.get(value);
 
@@ -304,10 +436,10 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     content = Constants.COMMENT_REGEX.map(content, e -> {
       var match = e.matched(0);
       if (match.startsWith('"')) return match;
-      return "";
+      return '';
     });
 
-    var lines:Array<String> = content.split("\n");
+    var lines:Array<String> = content.split('\n');
 
     for (line in lines.keyValueIterator()) {
       var pos = 0;
@@ -338,42 +470,42 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
     BytemodErrorHandler.report(CompileError(msg), fileName, line);
 
-    throw "__BYTEMOD_FATAL__";
+    throw '__BYTEMOD_FATAL__';
     return null;
   }
 
   private function skipTypeDefinition():Void {
-    read(); // eat "interface" "typedef" or "abstract"
+    read(); // eat 'interface' 'typedef' or 'abstract'
 
     // Now parse through the whole object till the end } or typedefs
-    while (cursor < tokens.length && peek() != "{" && peek() != "=") {
+    while (cursor < tokens.length && peek() != '{' && peek() != '=') {
       read();
     }
 
-    if (match("=")) {
-      if (peek() == "{") {
+    if (match('=')) {
+      if (peek() == '{') {
         skipBraces();
       } else {
-        while (cursor < tokens.length && peek() != ";") {
+        while (cursor < tokens.length && peek() != ';') {
           var next = peek();
-          if (next == "class" || next == "enum" || next.startsWith("@")) break;
+          if (next == 'class' || next == 'enum' || next.startsWith('@')) break;
           read();
         }
-        match(";");
+        match(';');
       }
-    } else if (peek() == "{") {
+    } else if (peek() == '{') {
       skipBraces();
     }
   }
 
   private function skipBraces():Void {
     var depth = 0;
-    if (match("{")) {
+    if (match('{')) {
       depth = 1;
       while (cursor < tokens.length && depth > 0) {
         var t = read();
-        if (t == "{") depth++;
-        if (t == "}") depth--;
+        if (t == '{') depth++;
+        if (t == '}') depth--;
       }
     }
   }

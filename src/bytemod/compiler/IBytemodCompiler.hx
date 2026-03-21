@@ -162,8 +162,9 @@ interface IBytemodCompiler {
    * `1 + 1 -> [14, 0, 1, 14, 1, 1, 0, 2, 0, 1]`
    *
    * @param tokens An array of tokens from the file contents
+   * @return The ID in the register
    */
-  public function parseExpression(?tokens:Array<Token>):Void;
+  public function parseExpression(?tokens:Array<Token>):Int;
 
   /**
    * Parses bytecode from stringified bytecode format.
@@ -210,7 +211,7 @@ typedef ClassDefinition = {
   interfaces:Array<Int>,
   fields:Array<FieldDefinition>,
   functions:Array<FunctionDefinition>,
-  flags:Int
+  flags:Modifier
 }
 
 typedef EnumDefinition = {
@@ -227,7 +228,7 @@ typedef EnumConstructor = {
 typedef FieldDefinition = {
   metadata:Array<MetadataEntry>,
   nameID:Int,
-  flags:Int,
+  flags:Modifier,
 }
 
 typedef FunctionDefinition = {
@@ -238,6 +239,7 @@ typedef FunctionDefinition = {
 }
 
 typedef ArgumentDefinition = {
+  nameID:Int,
   typeID:Int,
   opt:Bool,
   defaultID:Null<Int>

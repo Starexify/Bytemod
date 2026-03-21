@@ -23,17 +23,29 @@ class BytemodVM {
 
   inline function read():Int return bytecode[pc++];
 
-  public function execute(code:Array<Int>) {
+  public function execute(code:Array<Int>, startAddress:Int = 0):Null<Dynamic> {
     this.bytecode = code;
-    this.pc = 0;
-    if (bytecode == null || bytecode.length == 0) return;
+    this.pc = startAddress;
+    if (bytecode == null || startAddress < 0 || startAddress >= bytecode.length) return null;
 
     while (pc < bytecode.length) {
       var op:OpCode = read();
-      trace(OpCode.toString(op));
       switch (op) {
+        case LDI:
+          var regIdx = read();
+          var value = read();
+          registers[regIdx] = value;
 
+        case RET:
+          var regIdx = read();
+          return registers[regIdx];
+
+        default:
+          trace('Unknown OpCode: ${OpCode.toString(op)} at PC: $pc');
+          break;
       }
     }
+
+    return null;
   }
 }
