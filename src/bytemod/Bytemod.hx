@@ -4,6 +4,8 @@ import sys.FileSystem;
 import haxe.io.Path;
 import sys.io.File;
 
+using StringTools;
+
 class Bytemod {
   public static var scriptCache:Map<String, BytemodScript> = new Map();
 
@@ -27,9 +29,19 @@ class Bytemod {
       var path = Path.join([folder, item]);
 
       if (FileSystem.isDirectory(path)) scanMods(path);
-      else if (StringTools.endsWith(item, ".bm")) {
-        var content = File.getContent(path);
-        var script = new BytemodScript(item, content, "Bytemod");
+      else {
+        var fileType:String = '';
+
+        if (item.endsWith(".bm"))
+          fileType = 'Bytemod';
+        else if (item.endsWith(".hx"))
+          fileType = 'Haxe';
+
+        if (fileType == '') continue;
+
+        var script:BytemodScript = new BytemodScript(item, File.getContent(path), fileType);
+        if (script == null) continue;
+
         scriptCache.set(item, script);
         trace('Loaded script file: $item');
       }

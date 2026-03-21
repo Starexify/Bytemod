@@ -4,7 +4,7 @@ import bytemod.compiler.IBytemodCompiler;
 
 using StringTools;
 
-class BytemodCompiler implements IBytemodCompiler {
+class BytemodHaxeCompiler implements IBytemodCompiler {
   private var tokens:Array<Token> = [];
   private var cursor:Int = 0;
 
@@ -21,16 +21,10 @@ class BytemodCompiler implements IBytemodCompiler {
   public function new() {}
 
   public function compile(?tokens:Array<Token>):CompileResult {
-    if (read() == "constants") {
-      trace("CONSTANTS AHEAD");
-      parseConstants(tokens);
-    }
-
     return null;
   }
 
   public function parseConstants(?tokens:Array<Token>):Array<Dynamic> {
-    trace("Parsing Constants");
     return null;
   }
 
@@ -50,13 +44,17 @@ class BytemodCompiler implements IBytemodCompiler {
     return null;
   }
 
-  public function parseStatement(?tokens:Array<Token>):Void {}
+  public function parseStatement(?tokens:Array<Token>):Void {
+
+  }
 
   public function parseType(?tokens:Array<Token>):Int {
     return 0;
   }
 
-  public function parseExpression(?tokens:Array<Token>):Void {}
+  public function parseExpression(?tokens:Array<Token>):Void {
+
+  }
 
   public function parseBytecode(?tokens:Array<Token>):Array<Int> {
     return null;
@@ -74,9 +72,9 @@ class BytemodCompiler implements IBytemodCompiler {
 
     for (line in lines.keyValueIterator()) {
       var pos = 0;
-      while (Constants.BYTEMOD_REGEX.matchSub(line.value, pos)) {
-        var p = Constants.BYTEMOD_REGEX.matchedPos();
-        var matchText = Constants.BYTEMOD_REGEX.matched(0);
+      while (Constants.HAXE_REGEX.matchSub(line.value, pos)) {
+        var p = Constants.HAXE_REGEX.matchedPos();
+        var matchText = Constants.HAXE_REGEX.matched(0);
         tokens.push({text: matchText, line: line.key});
         pos = p.pos + p.len;
       }

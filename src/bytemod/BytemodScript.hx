@@ -1,6 +1,7 @@
 package bytemod;
 
 import bytemod.compiler.BytemodCompiler;
+import bytemod.compiler.BytemodHaxeCompiler;
 import bytemod.compiler.IBytemodCompiler;
 
 class BytemodScript {
@@ -14,8 +15,9 @@ class BytemodScript {
     this.fileName = name;
     this.vm = new BytemodVM();
 
-    final compiler:BytemodCompiler = switch (fileType) {
+    final compiler:IBytemodCompiler = switch (fileType) {
       case "Bytemod": new BytemodCompiler();
+      case "Haxe": new BytemodHaxeCompiler();
       default: throw "Unsupported script file type: " + fileType;
     }
 

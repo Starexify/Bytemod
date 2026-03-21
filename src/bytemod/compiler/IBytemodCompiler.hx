@@ -160,7 +160,7 @@ interface IBytemodCompiler {
    *
    *  Example:
    *
-   * `1 + 1 -> [0, 1, 0, 1, 10]`
+   * `1 + 1 -> [14, 0, 1, 14, 1, 1, 0, 2, 0, 1]`
    *
    * @param tokens An array of tokens from the file contents
    */
