@@ -21,32 +21,26 @@ class BytemodCompiler implements IBytemodCompiler {
   public function new() {}
 
   public function compile(?tokens:Array<Token>):CompileResult {
-    if (read() == "constants") {
-      trace("CONSTANTS AHEAD");
-      parseConstants(tokens);
-    }
-
     return null;
   }
 
   public function parseConstants(?tokens:Array<Token>):Array<Dynamic> {
-    trace("Parsing Constants");
     return null;
   }
 
-  public function parseClass(?tokens:Array<Token>):ClassDefinition {
+  public function parseClass(meta:Array<MetadataEntry>):ClassDefinition {
     return null;
   }
 
-  public function parseEnum(?tokens:Array<Token>):EnumDefinition {
+  public function parseEnum(meta:Array<MetadataEntry>):EnumDefinition {
     return null;
   }
 
-  public function parseField(?tokens:Array<Token>):FieldDefinition {
+  public function parseField(meta:Array<MetadataEntry>, flags:Modifier):VariableDefinition {
     return null;
   }
 
-  public function parseFunction(?tokens:Array<Token>):FunctionDefinition {
+  public function parseFunction(meta:Array<MetadataEntry>, flags:Modifier):FunctionDefinition {
     return null;
   }
 

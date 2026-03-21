@@ -60,11 +60,10 @@ interface IBytemodCompiler {
    *   flags: 0x01
    *   pkg: #ID
    * ```
-   *
-   * @param tokens An array of tokens from the file contents
+   * @param meta An array of metadata associated to the class
    * @return The class properties
    */
-  public function parseClass(?tokens:Array<Token>):ClassDefinition;
+  public function parseClass(meta:Array<MetadataEntry>):ClassDefinition;
 
   /**
    * Parses an enum
@@ -86,11 +85,10 @@ interface IBytemodCompiler {
    *       - name: #ID
    *         args: [#IntID, #BoolID]
    * ```
-   *
-   * @param tokens An array of tokens from the file contents
+   * @param meta An array of metadata associated to the enum
    * @return The enum properties
    */
-  public function parseEnum(?tokens:Array<Token>):EnumDefinition;
+  public function parseEnum(meta:Array<MetadataEntry>):EnumDefinition;
 
   /**
    * Parses a field
@@ -102,10 +100,11 @@ interface IBytemodCompiler {
    *                                flags: 0x04
    *                                meta: [#ID]
    * ```
-   * @param tokens An array of tokens from the file contents
+   * @param meta An array of metadata associated to the field
+   * @param flags The field flags
    * @return The field properties
    */
-  public function parseField(?tokens:Array<Token>):FieldDefinition;
+  public function parseField(meta:Array<MetadataEntry>, flags:Modifier):VariableDefinition;
 
   /**
    * Parses a function
@@ -126,11 +125,11 @@ interface IBytemodCompiler {
    *     ret: #VoidID
    *     start_address: 0x0000
    * ```
-   *
-   * @param tokens An array of tokens from the file contents
+   * @param meta An array of metadata associated to the function
+   * @param flags The function flags
    * @return The function properties
    */
-  public function parseFunction(?tokens:Array<Token>):FunctionDefinition;
+  public function parseFunction(meta:Array<MetadataEntry>, flags:Modifier):FunctionDefinition;
 
   /**
    * Parses and handles statements
@@ -201,7 +200,8 @@ typedef CompileResult = {
 typedef ObjectDefinition = {
   id:Int,
   nameID:Int,
-  pkg:Int
+  pkg:Int,
+  metadata:Array<MetadataEntry>
 }
 
 typedef ClassDefinition = {
@@ -210,7 +210,6 @@ typedef ClassDefinition = {
   interfaces:Array<Int>,
   fields:Array<FieldDefinition>,
   functions:Array<FunctionDefinition>,
-  metadata:Array<MetadataEntry>,
   flags:Int
 }
 
@@ -225,11 +224,15 @@ typedef EnumConstructor = {
   args:Array<Int>
 }
 
-typedef FunctionDefinition = {
+typedef FieldDefinition = {
   metadata:Array<MetadataEntry>,
   nameID:Int,
-  startAddress:Int,
   flags:Int,
+}
+
+typedef FunctionDefinition = {
+  >FieldDefinition,
+  startAddress:Int,
   args:Array<ArgumentDefinition>,
   retID:Int
 }
@@ -240,18 +243,16 @@ typedef ArgumentDefinition = {
   defaultID:Null<Int>
 }
 
-typedef FieldDefinition = {
-  metadata:Array<MetadataEntry>,
-  nameID:Int,
+typedef VariableDefinition = {
+  >FieldDefinition,
   typeID:Int,
-  flags:Int,
   getterID:Null<Int>,
   setterID:Null<Int>
 }
 
 typedef MetadataEntry = {
   nameID:Int,
-  params:Array<Int>
+  args:Array<Int>
 }
 
 typedef Token = {text:String, line:Int}

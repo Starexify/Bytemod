@@ -3,11 +3,15 @@ package test;
 import haxe.Timer;
 using StringTools;
 
-class Test {
+@test()
+class TestClass {
+  @testvar()
   var test = 1;
 
-  function func():Void {
-    trace(test);
-    test++;
-  }
+  @testfinal()
+  final TEST_FINAL = 100;
+}
+
+enum TestEnum {
+
 }
