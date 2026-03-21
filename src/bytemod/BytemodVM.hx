@@ -30,6 +30,7 @@ class BytemodVM {
 
     while (pc < bytecode.length) {
       var op:OpCode = read();
+      trace(OpCode.toString(op));
       switch (op) {
 
       }

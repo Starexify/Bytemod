@@ -18,39 +18,40 @@ enum abstract OpCode(Int) from Int to Int {
 
   // Unary Operations
   var NOT  = 11; // R1 = !R2 (Logical)
-  var NEG  = 12; // R1 = -R2 (Arithmetic)
+  var BNOT = 12; // R1 = ~R2 (Binary)
+  var NEG  = 13; // R1 = -R2 (Arithmetic)
 
   // Data Manipulation
-  var LDC  = 13; // R1 = constants[i]
-  var LDI  = 14; // R1 = integer_value
-  var MOV  = 15; // R1 = R2
+  var LDC  = 14; // R1 = constants[i]
+  var LDI  = 15; // R1 = integer_value
+  var MOV  = 16; // R1 = R2
 
   // Global & Static Operations
-  var GETG = 16; // R1 = Global[id]
-  var SETG = 17; // Global[id] = R1
-  var GETS = 18; // R1 = StaticClass.field
-  var SETS = 19; // StaticClass.field = R1
+  var GETG = 17; // R1 = Global[id]
+  var SETG = 18; // Global[id] = R1
+  var GETS = 19; // R1 = StaticClass.field
+  var SETS = 20; // StaticClass.field = R1
 
   // Comparison Producers (Return 1 or 0)
-  var EQ   = 20; // R1 = R2 == R3
-  var NEQ  = 21; // R1 = R2 != R3
-  var LT   = 22; // R1 = R2 < R3
-  var GT   = 23; // R1 = R2 > R3
-  var LTE  = 24; // R1 = R2 <= R3
-  var GTE  = 25; // R1 = R2 >= R3
-  var IS   = 26; // R1 = R2 is R3
+  var EQ   = 21; // R1 = R2 == R3
+  var NEQ  = 22; // R1 = R2 != R3
+  var LT   = 23; // R1 = R2 < R3
+  var GT   = 24; // R1 = R2 > R3
+  var LTE  = 25; // R1 = R2 <= R3
+  var GTE  = 26; // R1 = R2 >= R3
+  var IS   = 27; // R1 = R2 is R3
 
   // OOP / Field Operations
-  var NEW  = 27; // R1 = new Class(args...)
-  var CALL = 28; // R1 = R2.method(args...)
-  var GETP = 29; // R1 = R2.field
-  var SETP = 30; // R1.field = R2
+  var NEW  = 28; // R1 = new Class(args...)
+  var CALL = 29; // R1 = R2.method(args...)
+  var GETP = 30; // R1 = R2.field
+  var SETP = 31; // R1.field = R2
 
   // Control Flow (Jumps)
-  var JMP  = 31; // pc = target
-  var JZ   = 32; // if (!R1) pc = target
-  var JNZ  = 33; // if (R1) pc = target
-  var RET  = 34; // return R1 (Crucial for functions!)
+  var JMP  = 32; // pc = target
+  var JZ   = 33; // if (!R1) pc = target
+  var JNZ  = 34; // if (R1) pc = target
+  var RET  = 35; // return R1 (Crucial for functions!)
 
   public static function toString(op:Int):String {
     return switch (op) {
@@ -68,6 +69,7 @@ enum abstract OpCode(Int) from Int to Int {
       case USHR: "USHR";
 
       case NOT: "NOT";
+      case BNOT: "BNOT";
       case NEG: "NEG";
 
       case LDC: "LDC";

@@ -7,6 +7,14 @@ import sys.io.File;
 using StringTools;
 
 class Bytemod {
+  // Default imports for
+  public static var DEFAULT_IMPORTS:Map<String, Class<Dynamic>> = [
+    "Math"   => Math,
+    "Std"    => Std,
+    "String" => String,
+    "Array"  => Array
+  ];
+
   public static var scriptCache:Map<String, BytemodScript> = new Map();
 
   public static function init() {

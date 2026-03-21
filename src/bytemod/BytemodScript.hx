@@ -5,23 +5,25 @@ import bytemod.compiler.BytemodHaxeCompiler;
 import bytemod.compiler.IBytemodCompiler;
 
 class BytemodScript {
-  public var scriptName:String;
   public var fileName:String;
-  public var vm:BytemodVM;
+  public var fileType:String;
+  public var data:CompileResult;
 
-  public var functions:Map<String, Array<Int>> = new Map();
+  public var vm:BytemodVM;
 
   public function new(name:String, code:String, fileType:String) {
     this.fileName = name;
+    this.fileType = fileType;
     this.vm = new BytemodVM();
 
     final compiler:IBytemodCompiler = switch (fileType) {
       case "Bytemod": new BytemodCompiler();
-      case "Haxe": new BytemodHaxeCompiler();
+      case "Haxe": new BytemodHaxeCompiler(fileName);
       default: throw "Unsupported script file type: " + fileType;
     }
 
     compiler.tokenize(code);
-    final result:CompileResult = compiler.compile();
+    this.data = compiler.compile();
+    trace(data);
   }
 }

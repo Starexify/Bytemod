@@ -188,10 +188,14 @@ interface IBytemodCompiler {
 }
 
 typedef CompileResult = {
+  success:Bool,
+  packageName:String,
   constants:Array<Dynamic>,
   classes:Array<ClassDefinition>,
   enums:Array<EnumDefinition>,
-  bytecode:Array<Int>
+  bytecode:Array<Int>,
+  importMap:Map<String, String>,
+  usingList:Array<String>
 }
 
 typedef ObjectDefinition = {
