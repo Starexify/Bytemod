@@ -51,7 +51,7 @@ class Bytemod {
         if (script == null) continue;
 
         scriptCache.set(item, script);
-        trace('Loaded script file: $item');
+        //trace('Loaded script file: $item');
       }
     }
   }

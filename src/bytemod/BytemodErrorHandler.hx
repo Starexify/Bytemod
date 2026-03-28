@@ -7,7 +7,7 @@ enum BytemodErrorType {
 }
 
 class BytemodErrorHandler {
-  public static function report(type:BytemodErrorType, file:String, line:Int) {
+  public static function report(type:BytemodErrorType, file:String, line:Int = -1) {
     var isFatal = true;
     var prefix = "";
     var message = "";

@@ -23,7 +23,7 @@ enum abstract OpCode(Int) from Int to Int {
 
   // Data Manipulation
   var LDC  = 14; // R1 = constants[i]
-  var LDI  = 15; // R1 = integer_value
+  var LDI  = 15; // R1 = i_value
   var MOV  = 16; // R1 = R2
 
   // Global & Static Operations
@@ -42,16 +42,25 @@ enum abstract OpCode(Int) from Int to Int {
   var IS   = 27; // R1 = R2 is R3
 
   // OOP / Field Operations
-  var NEW  = 28; // R1 = new Class(args...)
-  var CALL = 29; // R1 = R2.method(args...)
-  var GETP = 30; // R1 = R2.field
-  var SETP = 31; // R1.field = R2
+  var NEW  = 28; // R1 = new ScriptClass(args...) // Script
+  var NNEW = 29; // R1 = new Class(args...) // Native
+  var CALL = 30; // R1 = R2.method(args...) // Script
+  var NCALL= 31; // R1 = Reflect.method(R2, args...) // Native
+  var GETP = 32; // R1 = R2.field
+  var SETP = 33; // R1.field = R2
 
   // Control Flow (Jumps)
-  var JMP  = 32; // pc = target
-  var JZ   = 33; // if (!R1) pc = target
-  var JNZ  = 34; // if (R1) pc = target
-  var RET  = 35; // return R1 (Crucial for functions!)
+  var JMP  = 34; // pc = target
+  var JZ   = 35; // if (!R1) pc = target
+  var JNZ  = 36; // if (R1) pc = target
+  var JLT  = 37; // if (R1 < R2) pc = target
+  var JGT  = 38; // if (R1 > R2) pc = target
+  var JEQ  = 39; // if (R1 == R2) pc = target
+  var RET  = 40; // return R1
+
+  // Optimization Ops
+  var INC  = 41; // R1++
+  var DEC  = 42; // R1--
 
   public static function toString(op:Int):String {
     return switch (op) {
@@ -90,14 +99,22 @@ enum abstract OpCode(Int) from Int to Int {
       case IS: "IS";
 
       case NEW: "NEW";
+      case NNEW: "NNEW";
       case CALL: "CALL";
+      case NCALL: "NCALL";
       case GETP: "GETP";
       case SETP: "SETP";
 
       case JMP: "JMP";
       case JZ: "JZ";
       case JNZ: "JNZ";
+      case JLT: "JLT";
+      case JGT: "JGT";
+      case JEQ: "JEQ";
       case RET: "RET";
+
+      case INC: "INC";
+      case DEC: "DEC";
 
       default: "UNKNOWN_" + op;
     }

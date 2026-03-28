@@ -202,6 +202,9 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
           default:
             if (flags != Modifier.None) {
               classDef.fields.push(parseField(memberMeta, flags));
+            } else {
+              var unknown = read();
+              fatal('Unexpected token "$unknown" inside class body.');
             }
             collecting = false;
         }
@@ -273,7 +276,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     var args:Array<ArgumentDefinition> = [];
     var returnTypeID:Int = -1;
 
-    // Parse Arguments (a:Int, b:String)
+    // Parse Arguments (a:T, b:T)
     expect('(');
     while (cursor < tokens.length && peek() != ')') {
       var isOpt = match('?');
@@ -317,8 +320,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       startAddress = -1;
     }
 
-    trace(startAddress);
-    trace(bytecode);
+    trace(startAddress, bytecode);
     return {
       metadata: meta,
       nameID: nameID,
@@ -350,7 +352,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
       // [OpCode.RET, Register]
       this.bytecode.push(OpCode.RET);
-      this.bytecode.push(reg); // Pushes 0
+      this.bytecode.push(reg); // push R1
 
       match(";");
       return;
@@ -375,7 +377,12 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       this.bytecode.push(OpCode.LDI);
       this.bytecode.push(targetReg);
       this.bytecode.push(1);
-
+      return targetReg;
+    }
+    else if (t == "false") {
+      this.bytecode.push(OpCode.LDI);
+      this.bytecode.push(targetReg);
+      this.bytecode.push(0);
       return targetReg;
     }
 

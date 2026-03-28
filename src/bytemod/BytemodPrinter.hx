@@ -42,10 +42,10 @@ class BytemodPrinter {
         case GETP | SETP:
           output += 'R${read()}, R${read()}, Sym[${read()}]';
 
-        case NEW:
+        case NEW | NNEW:
           output += 'R${read()}, Class[${read()}], Args: ${read()}, Start: R${read()}';
 
-        case CALL:
+        case CALL | NCALL:
           output += 'R${read()}, R${read()}, Sym[${read()}], Args: ${read()}, Start: R${read()}';
 
         // Control Flow
