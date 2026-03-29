@@ -1,6 +1,7 @@
 package bytemod.compiler;
 
 import bytemod.compiler.IBytemodCompiler;
+import Type.ValueType;
 
 using StringTools;
 
@@ -14,13 +15,18 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   private var enums:Array<EnumDefinition>;
   private var bytecode:Array<Int>;
 
-  private var constantIDs:Map<Dynamic, Int>;
+  private var constantIDs:Map<String, Int>;
+
+  private var currentClassName:String = "";
+  private var currentFields:Map<String, {id:Int, flags:Modifier}> = new Map();
 
   public var packageName:String;
   private var importMap:Map<String, String>;
   private var usingList:Array<String>;
 
   private var registerCount:Int = 0;
+  private var registerValues:Map<Int, Dynamic>;
+  private var localVariables:Map<String, Int>;
 
   private inline function nextRegister():Int return registerCount++;
 
@@ -49,6 +55,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   }
 
   public function compile(?tokens:Array<Token>):CompileResult {
+    var startTime = haxe.Timer.stamp();
     if (tokens != null) this.tokens = tokens;
     this.cursor = 0;
 
@@ -56,7 +63,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     this.enums = [];
     this.constants = [];
     this.bytecode = [];
-    this.constantIDs = new Map<Dynamic, Int>();
+    this.constantIDs = new Map<String, Int>();
     resetImportMap();
     this.definedTypes = new Map();
     this.usingList = [];
@@ -89,6 +96,21 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
           default: fatal('Unexpected token "$t" at top level.');
         }
       }
+
+      var result = createResult(true);
+      #if debug
+      trace('Compilation took: ${haxe.Timer.stamp() - startTime}s');
+      if (result.success && result.classes.length > 0) {
+        for (cls in result.classes) {
+          for (func in cls.functions) {
+            var code = result?.bytecode.slice(func.startAddress);
+            trace(constants[func.nameID], code);
+            BytemodPrinter.disassemble(code, result.constants);
+          }
+        }
+      }
+      #end
+
       return createResult(true);
 
     } catch (e:String) {
@@ -147,6 +169,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
     var name = read();
     checkDuplicateType(name, 'class');
+    this.currentClassName = name;
     var nameID = getConstantID(name);
     var pkgID = getConstantID(this.packageName);
 
@@ -180,11 +203,9 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
           case 'private': read(); flags = flags.set(Modifier.Private);
           case 'static': read(); flags = flags.set(Modifier.Static);
           case 'inline': read(); flags = flags.set(Modifier.Inline);
-          case 'dynamic': read(); flags = flags.set(Modifier.Dynamic);
+          case 'dynamic': read();
           case 'override': read();
-          case 'final':
-            read();
-            flags = flags.set(Modifier.Final);
+          case 'final': read(); flags = flags.set(Modifier.Final);
             var next = peek();
             if (next != 'var' && next != 'function') {
               classDef.fields.push(parseField(memberMeta, flags));
@@ -258,6 +279,8 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
     expect(';');
 
+    currentFields.set(name, {id: nameID, flags: flags});
+
     return {
       metadata: meta,
       nameID: nameID,
@@ -273,15 +296,20 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
     var name = read();
     var nameID = getConstantID(name);
-    var args:Array<ArgumentDefinition> = [];
     var returnTypeID:Int = -1;
+
+    this.registerCount = 0;
+    this.localVariables = new Map<String, Int>();
+    this.registerValues = new Map();
 
     // Parse Arguments (a:T, b:T)
     expect('(');
+    var args:Array<ArgumentDefinition> = [];
     while (cursor < tokens.length && peek() != ')') {
       var isOpt = match('?');
 
       var argName = read();
+      localVariables.set(argName, nextRegister());
       var argNameID = getConstantID(argName);
       var argTypeID = -1;
       var defaultID = -1;
@@ -307,7 +335,6 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     if (match(':')) returnTypeID = parseType();
 
     var startAddress = this.bytecode.length;
-    this.registerCount = 0;
 
     if (peek() == '{') {
       parseFunctionBody(true);
@@ -320,7 +347,6 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       startAddress = -1;
     }
 
-    trace(startAddress, bytecode);
     return {
       metadata: meta,
       nameID: nameID,
@@ -349,11 +375,51 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   public function parseStatement(?tokens:Array<Token>):Void {
     if (match("return")) {
       var reg = parseExpression();
+      ensureEmitted(reg);
 
       // [OpCode.RET, Register]
       this.bytecode.push(OpCode.RET);
       this.bytecode.push(reg); // push R1
 
+      match(";");
+      return;
+    }
+
+    if (match("var")) {
+      var name = read();
+      var reg = nextRegister();
+
+      // Register the variable name to this register ID
+      localVariables.set(name, reg);
+
+      if (match(":")) {
+        parseType(); // We skip the type for now as we are dynamic
+      }
+
+      if (match("=")) {
+        var exprReg = parseExpression();
+
+        if (registerValues.exists(exprReg)) {
+          var val = registerValues.get(exprReg);
+          // Emit LDI/LDC specifically into OUR variable register
+          if (val is Int) {
+            this.bytecode.push(OpCode.LDI);
+            this.bytecode.push(reg);
+            this.bytecode.push(val);
+          }
+          else {
+            this.bytecode.push(OpCode.LDC);
+            this.bytecode.push(reg);
+            this.bytecode.push(getConstantID(val));
+          }
+          registerValues.remove(exprReg);
+        }
+        else {
+          this.bytecode.push(OpCode.MOV);
+          this.bytecode.push(reg);
+          this.bytecode.push(exprReg);
+        }
+      }
       match(";");
       return;
     }
@@ -369,24 +435,157 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     return getConstantID(typeName);
   }
 
-  public function parseExpression(?tokens:Array<Token>):Int {
-    var t = read();
-    var targetReg = nextRegister();
+  public function parseExpression(minPrecedence:Int = 0):Int {
+    var leftReg = parsePrimary();
 
-    if (t == "true") {
-      this.bytecode.push(OpCode.LDI);
-      this.bytecode.push(targetReg);
-      this.bytecode.push(1);
-      return targetReg;
-    }
-    else if (t == "false") {
-      this.bytecode.push(OpCode.LDI);
-      this.bytecode.push(targetReg);
-      this.bytecode.push(0);
-      return targetReg;
+    while (true) {
+      if (cursor >= tokens.length) break;
+
+      var op = peek();
+      var prec = getPrecedence(op);
+
+      // If not an operator or lower priority exit this level
+      if (prec <= minPrecedence) break;
+
+      read();
+      var rightReg = parseExpression(prec);
+
+      ensureEmitted(leftReg);
+      ensureEmitted(rightReg);
+
+      var destReg = nextRegister();
+      var opcode:Int = switch (op) {
+        case "+": OpCode.ADD;
+        case "-": OpCode.SUB;
+        case "*": OpCode.MUL;
+        case "/": OpCode.DIV;
+        case "==": OpCode.EQ;
+        case "<": OpCode.LT;
+        case ">": OpCode.GT;
+        default: fatal("Unsupported operator: " + op);
+      };
+
+      this.bytecode.push(opcode);
+      this.bytecode.push(destReg);
+      this.bytecode.push(leftReg);
+      this.bytecode.push(rightReg);
+
+      leftReg = destReg;
     }
 
-    return targetReg;
+    return leftReg;
+  }
+
+  private function ensureEmitted(reg:Int):Void {
+    if (registerValues.exists(reg)) {
+      var val = registerValues.get(reg);
+      if (val is Int) {
+        this.bytecode.push(OpCode.LDI);
+        this.bytecode.push(reg);
+        this.bytecode.push(val);
+      }
+      else {
+        this.bytecode.push(OpCode.LDC);
+        this.bytecode.push(reg);
+        this.bytecode.push(getConstantID(val));
+      }
+      registerValues.remove(reg);
+    }
+  }
+
+  private function parsePrimary():Int {
+    var t = peek();
+
+    // Check for groups
+    if (match("(")) {
+      var groupReg = parseExpression(0);
+      expect(")");
+      return groupReg;
+    }
+
+    // Check for local variables
+    if (localVariables.exists(t)) {
+      read();
+      return localVariables.get(t);
+    }
+
+    // Check for class fields
+    if (currentFields.exists(t)) {
+      var fieldData = currentFields.get(t);
+      read(); // eat name
+
+      var reg = nextRegister();
+      if (fieldData.flags.has(Modifier.Static)) {
+        this.bytecode.push(OpCode.GETS);
+        this.bytecode.push(reg);
+        this.bytecode.push(getConstantID(this.currentClassName));
+        this.bytecode.push(fieldData.id);
+      }
+      else {
+        // Otherwise, it's an instance property (this.field)
+        this.bytecode.push(OpCode.GETP);
+        this.bytecode.push(reg);
+        this.bytecode.push(0); // R0 is 'this'
+        this.bytecode.push(fieldData.id);
+      }
+
+      return reg;
+    }
+
+    var reg = nextRegister();
+
+    // Check for numbers
+    if (~/^[0-9]*\.?[0-9]+$/.match(t)) {
+      read();
+      var val:Float = Std.parseFloat(t);
+      registerValues.set(reg, (val == Std.int(val)) ? Std.int(val) : val);
+      return reg;
+    }
+
+    // Check for booleans and use constants to store them
+    if (t == "true" || t == "false") {
+      read();
+      registerValues.set(reg, (t == "true"));
+      return reg;
+    }
+
+    // Check for strings
+    if (t.startsWith('"')) {
+      read();
+      registerValues.set(reg, t.substring(1, t.length - 1));
+      return reg;
+    }
+
+    if (~/^[a-zA-Z_][a-zA-Z0-9_]*$/.match(t)) {
+      var name = read();
+
+      if (match(".")) {
+        var fieldName = read();
+        var reg = nextRegister();
+
+        this.bytecode.push(OpCode.GETS);
+        this.bytecode.push(reg);
+        this.bytecode.push(getConstantID(name));
+        this.bytecode.push(getConstantID(fieldName));
+        return reg;
+      }
+      fatal("Unknown identifier: " + name);
+    }
+
+    fatal("Expected a value or variable, but found: " + t);
+    return -1;
+  }
+
+  private function getPrecedence(op:String):Int {
+    return switch (op) {
+      case "||": 1;
+      case "&&": 2;
+      case "==" | "!=": 3;
+      case "<" | ">" | "<=" | ">=": 4;
+      case "+" | "-": 5;
+      case "*" | "/" | "%": 6;
+      default: 0;
+    }
   }
 
   public function parseBytecode(?tokens:Array<Token>):Array<Int> {
@@ -428,13 +627,22 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
      * @return The ID of the constant if it exists already, or a new constant ID if newly added.
      */
   private function getConstantID(value:Dynamic):Int {
-    if (this.constantIDs.exists(value)) return this.constantIDs.get(value);
+    var key:String = "";
+    var type = Type.typeof(value);
 
+    switch (type) {
+      case TInt: key = "i_" + value;
+      case TFloat: key = "f_" + value;
+      case TBool: key = "b_" + (value ? "true" : "false");
+      case TClass(String): key = "s_" + value;
+      default: key = "v_" + Std.string(value);
+    }
+
+    if (this.constantIDs.exists(key)) return this.constantIDs.get(key);
+
+    var id = this.constants.length;
     this.constants.push(value);
-    var id = this.constants.length - 1;
-
-    this.constantIDs.set(value, id);
-
+    this.constantIDs.set(key, id);
     return id;
   }
 

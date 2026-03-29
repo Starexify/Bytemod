@@ -16,7 +16,7 @@ interface IBytemodCompiler {
   private var enums:Array<EnumDefinition>;
   private var bytecode:Array<Int>;
 
-  private var constantIDs:Map<Dynamic, Int>;
+  private var constantIDs:Map<String, Int>;
 
   /**
    * Function used for compiling
@@ -164,7 +164,7 @@ interface IBytemodCompiler {
    * @param tokens An array of tokens from the file contents
    * @return The ID in the register
    */
-  public function parseExpression(?tokens:Array<Token>):Int;
+  public function parseExpression(minPrecedence:Int = 0):Int;
 
   /**
    * Parses bytecode from stringified bytecode format.

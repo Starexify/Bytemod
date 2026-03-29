@@ -13,7 +13,7 @@ class BytemodCompiler implements IBytemodCompiler {
   private var enums:Array<EnumDefinition>;
   private var bytecode:Array<Int>;
 
-  private var constantIDs:Map<Dynamic, Int>;
+  private var constantIDs:Map<String, Int>;
 
   private inline function read():String return tokens[cursor++].text;
   private inline function peek():Token return tokens[cursor];
@@ -59,7 +59,7 @@ class BytemodCompiler implements IBytemodCompiler {
     return 0;
   }
 
-  public function parseExpression(?tokens:Array<Token>):Int {
+  public function parseExpression(minPrecedence:Int = 0):Int {
     return 0;
   }
 

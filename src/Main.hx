@@ -33,10 +33,12 @@ class Main {
 }
 
 class TestClass {
+
   var a:Int = 10;
   final B:Int = 20;
   public var c(never, null):Int;
   public var d(null, never):Int;
+  static var e:Int = 10;
 
   public var score(default, set):Int;
 

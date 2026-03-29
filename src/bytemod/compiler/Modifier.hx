@@ -7,7 +7,6 @@ enum abstract Modifier(Int) from Int to Int {
   var Static    = 0x04;
   var Final     = 0x08;
   var Inline    = 0x10;
-  var Dynamic   = 0x20;
 
   public inline function has(flag:Modifier):Bool {
     return (this & flag) != 0;

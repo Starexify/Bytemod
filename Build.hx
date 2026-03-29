@@ -37,12 +37,18 @@ class Build {
       //Sys.command("gcc", ["-shared", "-fPIC", "test.c", "-lhl", "-lSDL3", "-o", "bin/test.hdll"]);
 
       log("Compiling HashLink...");
-      Sys.command("haxe", [
+      var haxeArgs = [
         "-cp", "src",
         "-main", "Main",
-        "-hl", "build/hlc/main.c",
-        //"--macro", "bytemod.macro.ImportGetterMacro.trackGenerated()" // If macros without build are ever needed add ts
-      ]);
+        "-hl", "build/hlc/main.c"
+      ];
+
+      if (args.contains("debug")) {
+        haxeArgs.push("-D");
+        haxeArgs.push("debug");
+      }
+
+      Sys.command("haxe", haxeArgs);
 
       log("Compiling Native...");
       // -O3: Optimize

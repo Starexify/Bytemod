@@ -1,23 +1,23 @@
 package test;
 
 import haxe.Timer;
+
 using StringTools;
 
-@test()
 class TestClass {
-  @testvar()
-  var test = 1;
+  function testGetS() {
+    return TestClass.e;
+  }
 
-  @testfinal()
-  final TEST_FINAL = 100;
+  static var e = 100;
+  function testGetSS() {
+    return e;
+  }
 
-  function testOneLiner():Bool return true;
-
-  static function testFunc():Bool {
-    return false;
+  static function testFunc():Float {
+    return 10;
   }
 }
 
 enum TestEnum {
-
 }

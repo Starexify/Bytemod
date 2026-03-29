@@ -26,41 +26,39 @@ enum abstract OpCode(Int) from Int to Int {
   var LDI  = 15; // R1 = i_value
   var MOV  = 16; // R1 = R2
 
-  // Global & Static Operations
-  var GETG = 17; // R1 = Global[id]
-  var SETG = 18; // Global[id] = R1
-  var GETS = 19; // R1 = StaticClass.field
-  var SETS = 20; // StaticClass.field = R1
+  // Static Operations
+  var GETS = 17; // R1 = StaticClass.field
+  var SETS = 18; // StaticClass.field = R1
 
   // Comparison Producers (Return 1 or 0)
-  var EQ   = 21; // R1 = R2 == R3
-  var NEQ  = 22; // R1 = R2 != R3
-  var LT   = 23; // R1 = R2 < R3
-  var GT   = 24; // R1 = R2 > R3
-  var LTE  = 25; // R1 = R2 <= R3
-  var GTE  = 26; // R1 = R2 >= R3
-  var IS   = 27; // R1 = R2 is R3
+  var EQ   = 19; // R1 = R2 == R3
+  var NEQ  = 20; // R1 = R2 != R3
+  var LT   = 21; // R1 = R2 < R3
+  var GT   = 22; // R1 = R2 > R3
+  var LTE  = 23; // R1 = R2 <= R3
+  var GTE  = 24; // R1 = R2 >= R3
+  var IS   = 25; // R1 = R2 is R3
 
   // OOP / Field Operations
-  var NEW  = 28; // R1 = new ScriptClass(args...) // Script
-  var NNEW = 29; // R1 = new Class(args...) // Native
-  var CALL = 30; // R1 = R2.method(args...) // Script
-  var NCALL= 31; // R1 = Reflect.method(R2, args...) // Native
-  var GETP = 32; // R1 = R2.field
-  var SETP = 33; // R1.field = R2
+  var NEW  = 26; // R1 = new ScriptClass(args...) // Script
+  var NNEW = 27; // R1 = new Class(args...) // Native
+  var CALL = 28; // R1 = R2.method(args...) // Script
+  var NCALL= 29; // R1 = Reflect.method(R2, args...) // Native
+  var GETP = 30; // R1 = R2.field
+  var SETP = 31; // R1.field = R2
 
   // Control Flow (Jumps)
-  var JMP  = 34; // pc = target
-  var JZ   = 35; // if (!R1) pc = target
-  var JNZ  = 36; // if (R1) pc = target
-  var JLT  = 37; // if (R1 < R2) pc = target
-  var JGT  = 38; // if (R1 > R2) pc = target
-  var JEQ  = 39; // if (R1 == R2) pc = target
-  var RET  = 40; // return R1
+  var JMP  = 32; // pc = target
+  var JZ   = 33; // if (!R1) pc = target
+  var JNZ  = 34; // if (R1) pc = target
+  var JLT  = 35; // if (R1 < R2) pc = target
+  var JGT  = 36; // if (R1 > R2) pc = target
+  var JEQ  = 37; // if (R1 == R2) pc = target
+  var RET  = 38; // return R1
 
   // Optimization Ops
-  var INC  = 41; // R1++
-  var DEC  = 42; // R1--
+  var INC  = 39; // R1++
+  var DEC  = 40; // R1--
 
   public static function toString(op:Int):String {
     return switch (op) {
@@ -85,8 +83,6 @@ enum abstract OpCode(Int) from Int to Int {
       case LDI: "LDI";
       case MOV: "MOV";
 
-      case GETG: "GETG";
-      case SETG: "SETG";
       case GETS: "GETS";
       case SETS: "SETS";
 
