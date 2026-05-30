@@ -172,6 +172,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     this.currentClassName = name;
     var nameID = getConstantID(name);
     var pkgID = getConstantID(this.packageName);
+    var extendsClassName:String = null;
 
     var classDef:ClassDefinition = {
       id: this.classes.length,
@@ -184,6 +185,23 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       functions: [],
       flags: 0
     };
+
+    // Check for stuff like extended or implement or such
+    while (cursor < tokens.length && peek() != '{') {
+      if (match('extends')) {
+        extendsClassName = read();
+        while (match('.')) {
+          extendsClassName += "." + read();
+        }
+        classDef.extendsID = getConstantID(extendsClassName);
+      }
+      else if (match('implements')) {
+        continue;
+      }
+      else {
+        fatal('Expected "{", "extends", or "implements" but found "${peek()}"');
+      }
+    }
 
     expect('{');
     while (cursor < tokens.length && peek() != '}') {

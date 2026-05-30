@@ -1,5 +1,6 @@
 package bytemod;
 
+import bytemod.BytemodErrorHandler;
 import bytemod.compiler.BytemodCompiler;
 import bytemod.compiler.BytemodHaxeCompiler;
 import bytemod.compiler.IBytemodCompiler;
@@ -33,6 +34,7 @@ class BytemodScript {
 
     for (cls in data.classes) {
       var className = data.constants[cls.nameID];
+      var fullyQualifiedClass = className;
 
       for (field in cls.fields) {
         var fieldName = data.constants[field.nameID];
@@ -47,8 +49,10 @@ class BytemodScript {
       }
 
       for (f in cls.functions) {
-        var name = data.constants[f.nameID];
-        functionMap.set(name, f.startAddress);
+        var funcName = data.constants[f.nameID];
+        var globalKey = fullyQualifiedClass + "." + funcName;
+        functionMap.set(globalKey, f.startAddress);
+        #if debug trace('Registered Bytecode Path: $globalKey -> Addr: ${f.startAddress}'); #end
       }
     }
 
@@ -57,7 +61,7 @@ class BytemodScript {
       var start = Timer.stamp();
       var result = call(func);
       var end = Timer.stamp();
-      trace(end - start);
+      trace("Function call took: " + (end - start));
       trace(result);
     }
     #end
@@ -73,4 +77,50 @@ class BytemodScript {
     }
     return vm.execute(data.bytecode, functionMap.get(name), name);
   }
+
+  /**
+   * Calls a function from a script's native parent.
+   */
+  public function callInstance(name:String, nativeInstance:Dynamic, args:Array<Dynamic>):Null<Dynamic> {
+    var state:Scriptable = Reflect.field(nativeInstance, "_script");
+    if (state == null) return null;
+
+    var globalKey = state.className + "." + name;
+    if (!functionMap.exists(globalKey)) {
+      BytemodErrorHandler.report(BytemodErrorType.RuntimeError('Function "$name" not found in ${fileName}'), fileName);
+      return null;
+    }
+
+    vm.registers[0] = Reflect.field(nativeInstance, "_script");
+
+    return vm.execute(data.bytecode, functionMap.get(globalKey), name);
+  }
+
+  /**
+   * Checks if a function from a scripted class exists.
+   */
+  public function hasFunction(fullyQualifiedClass:String, functionName:String):Bool {
+    return functionMap.exists(fullyQualifiedClass + "." + functionName);
+  }
+}
+
+class Scriptable {
+  public var className:String;
+  public var script:BytemodScript;
+  public var fields:Map<String, Dynamic> = new Map();
+  public var nativeObject:Dynamic;
+
+  public function new(className:String, script:BytemodScript, nativeObject:Dynamic) {
+    this.className = className;
+    this.script = script;
+    this.nativeObject = nativeObject;
+  }
+}
+
+
+@:autoBuild(bytemod.macro.IScriptableMacro.build())
+interface IScriptable {
+//  public var _script:Scriptable;
+
+//  public function _callScriptFunc(name:String, ?args:Array<Dynamic>):Null<Dynamic>;
 }

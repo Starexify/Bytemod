@@ -5,17 +5,30 @@ import haxe.Timer;
 using StringTools;
 
 class TestClass {
-  function testGetS() {
-    return TestClass.e;
-  }
+//  function testGetS() {
+//    return TestClass.e;
+//  }
+//
+//  static var e = 100;
+//  function testGetSS() {
+//    return e;
+//  }
+//
+//  static function testFunc():Float {
+//    return 10 - 100;
+//  }
+}
 
-  static var e = 100;
-  function testGetSS() {
-    return e;
-  }
-
-  static function testFunc():Float {
+class TestEntity extends Enemy {
+  override public function takeDamage(amount:Int):Int {
     return 10;
+  }
+}
+
+class TestBabyEntity extends Enemy.BabyEnemy {
+  override public function babySounds():String {
+    //return super.babySounds();
+    return 99;
   }
 }
 

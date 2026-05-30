@@ -16,14 +16,12 @@ class BytemodVM {
   public var symbols:Array<String> = [];
 
   // Storage
-  public var registers:Vector<Float> = new Vector<Float>(256);
-  public var dynRegisters:Vector<Dynamic> = new Vector<Dynamic>(256);
+  public var registers:Vector<Dynamic> = new Vector<Dynamic>(256);
 
   public function new() {}
 
   public function execute(code:Array<Int>, startAddress:Int = 0, funcName:String = 'unknown'):Null<Dynamic> {
     var regs = this.registers;
-    var dRegs = this.dynRegisters;
     var b = code;
     var p = startAddress;
     #if debug trace(p, b); #end
@@ -54,7 +52,6 @@ class BytemodVM {
               default:
             }
             regs[dest] = res;
-            dRegs[dest] = res;
 
           case MOD:
 
@@ -73,24 +70,19 @@ class BytemodVM {
             final r1 = b[p++];
             final constIdx = b[p++];
             final val:Dynamic = this.constants[constIdx];
-            dRegs[r1] = val;
-            if (val is Float || val is Int) {
-              regs[r1] = cast val;
-            }
+            regs[r1] = val;
             #if debug trace(OpCode.toString(op) + ' R$r1 c[$val]'); #end
 
           case LDI:
             final r1 = b[p++];
             final i_val = b[p++];
             regs[r1] = i_val;
-            dRegs[r1] = i_val;
             #if debug trace(OpCode.toString(op) + ' R$r1 $i_val'); #end
 
           case MOV:
             final dest = b[p++];
             final src = b[p++];
             regs[dest] = regs[src];
-            dRegs[dest] = dRegs[src];
             #if debug trace(OpCode.toString(op) + ' R$src -> R$dest'); #end
 
           case GETS:
@@ -112,8 +104,8 @@ class BytemodVM {
               return null;
             }
 
-            dRegs[dest] = val;
-            if (val is Float || val is Int) regs[dest] = cast val;
+            regs[dest] = val;
+
             #if debug trace(OpCode.toString(op) + ' $className.$fieldName -> R$dest ($val)'); #end
 
           case SETS:
@@ -141,7 +133,7 @@ class BytemodVM {
           case JEQ:
           case RET:
             final regIdx = b[p++];
-            final r1 = dRegs[regIdx];
+            final r1 = regs[regIdx];
             #if debug trace(OpCode.toString(op), r1); #end
             return r1;
 

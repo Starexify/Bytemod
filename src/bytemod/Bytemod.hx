@@ -1,7 +1,8 @@
 package bytemod;
 
-import sys.FileSystem;
+import bytemod.BytemodScript;
 import haxe.io.Path;
+import sys.FileSystem;
 import sys.io.File;
 
 using StringTools;
@@ -54,6 +55,17 @@ class Bytemod {
         //trace('Loaded script file: $item');
       }
     }
+  }
+
+  public static function createScriptedInstance<T:IScriptable>(className:String, scriptFileName:String, nativeInstance:T):T {
+    var scriptBlueprint = scriptCache.get(scriptFileName);
+
+    if (scriptBlueprint == null) {
+      return nativeInstance;
+    }
+
+    Reflect.setField(nativeInstance, "_script", new Scriptable(className, scriptBlueprint, nativeInstance));
+    return nativeInstance;
   }
 
   public static function getModsFolder():String {

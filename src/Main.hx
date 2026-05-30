@@ -1,9 +1,32 @@
 import bytemod.Bytemod;
 import bytemod.BytemodPrinter;
 
+import Enemy;
+
 class Main {
   static function main() {
     Bytemod.init();
+
+    var enemy:Enemy = new Enemy();
+    trace(enemy.takeDamage(10));
+
+    var scriptedEnemy:Enemy = Bytemod.createScriptedInstance("TestEntity", "testTwo.hx", new Enemy());
+    trace(scriptedEnemy.takeDamage(100));
+
+//    trace(scriptedEnemy is IScriptable);
+//    trace(enemy is IScriptable);
+
+    var bbEnemy:BabyEnemy = new BabyEnemy();
+    trace(bbEnemy.babySounds());
+
+    var scriptedbbEnemy:BabyEnemy = Bytemod.createScriptedInstance("TestBabyEntity", "testTwo.hx", new BabyEnemy());
+    trace(scriptedbbEnemy.babySounds());
+    trace(scriptedbbEnemy.takeDamage(10));
+
+//    trace(scriptedbbEnemy is BabyEnemy);
+//    trace(scriptedbbEnemy is Enemy);
+//    trace(bbEnemy is BabyEnemy);
+//    trace(bbEnemy is Enemy);
 
     //while (true) {
 //      BytemodPrinter.disassemble(Bytemod.scriptCache.get("testTwo.hx").functions.get("otherFunc"));
