@@ -13,12 +13,12 @@ class IScriptableMacro {
     var localClass = localClassRef.get();
     var className = localClass.name;
 
-    Sys.println('\n--- Macro Scriptable for $className ---');
+    #if debug Sys.println('\n--- Macro Scriptable for $className ---'); #end
 
     var inheritsScriptField = false;
     var currentSuper = localClass.superClass;
     while (currentSuper != null) {
-      var superCls = currentSuper.t.get();
+      final superCls = currentSuper.t.get();
       for (f in superCls.fields.get()) {
         if (f.name == "_script") {
           inheritsScriptField = true;
@@ -52,9 +52,8 @@ class IScriptableMacro {
       }).fields;
 
       fields = fields.concat(injectedFields);
-    } else {
-      Sys.println(' Skipping injection: $className inherits script properties from parent class.');
-    }
+    } else
+      #if debug Sys.println(' Skipping injection: $className inherits script properties from parent class.'); #end
 
     for (f in fields) {
       switch (f.kind) {
@@ -65,10 +64,10 @@ class IScriptableMacro {
           var origBody = func.expr;
           var argExpressions = [for (arg in func.args) macro $i{arg.name}];
 
-          Sys.println(' Wrapping Method $className.$hookName()');
+          #if debug Sys.println(' Wrapping Method $className.$hookName()'); #end
 
           func.expr = macro {
-            if (this._script != null && this._script.script.hasFunction(this._script.className, $v{hookName})) {
+            if (this._script != null && !this._script.bypassScript && this._script.script.hasFunction(this._script.className, $v{hookName})) {
               return this._callScriptFunc($v{hookName}, $a{argExpressions});
             }
             return $origBody;

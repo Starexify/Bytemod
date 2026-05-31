@@ -20,8 +20,11 @@ class TestClass {
 }
 
 class TestEntity extends Enemy {
+  public var health:Int = 300;
+
   override public function takeDamage(amount:Int):Int {
-    return 10;
+    var i = super.takeDamage(0);
+    return this.health + amount + i - 50;
   }
 }
 

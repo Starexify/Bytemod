@@ -91,7 +91,13 @@ class BytemodScript {
       return null;
     }
 
-    vm.registers[0] = Reflect.field(nativeInstance, "_script");
+    vm.registers[0] = state;
+
+    if (args != null) {
+      for (i in 0...args.length) vm.registers[i + 1] = args[i];
+    }
+
+    #if debug trace('Calling instance function: $globalKey -> Addr: ${functionMap.get(globalKey)} with args: $args'); #end
 
     return vm.execute(data.bytecode, functionMap.get(globalKey), name);
   }
@@ -108,12 +114,34 @@ class Scriptable {
   public var className:String;
   public var script:BytemodScript;
   public var fields:Map<String, Dynamic> = new Map();
-  public var nativeObject:Dynamic;
+  public var parent:Dynamic;
 
-  public function new(className:String, script:BytemodScript, nativeObject:Dynamic) {
+  // Prevent freezing by recursive script override loops.
+  public var bypassScript:Bool = false;
+
+  public function new(className:String, script:BytemodScript, parent:Dynamic) {
     this.className = className;
     this.script = script;
-    this.nativeObject = nativeObject;
+    this.parent = parent;
+
+    if (script == null || script.data == null) return;
+
+    // Fill the class instance with initial fields
+    for (cls in script.data.classes) {
+      var name = script.data.constants[cls.nameID];
+      if (name != className) continue;
+
+      for (field in cls.fields) {
+        if (field.flags.has(Modifier.Static)) continue;
+
+        var fieldName = script.data.constants[field.nameID];
+        var valID:Null<Int> = Reflect.field(field, "valueID");
+        var initialValue = (valID != null && valID >= 0) ? script.data.constants[valID] : null;
+
+        this.fields.set(fieldName, initialValue);
+      }
+      break;
+    }
   }
 }
 

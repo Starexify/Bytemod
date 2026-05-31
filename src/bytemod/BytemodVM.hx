@@ -1,5 +1,6 @@
 package bytemod;
 
+import bytemod.BytemodScript;
 import haxe.ds.Vector;
 
 using StringTools;
@@ -122,7 +123,69 @@ class BytemodVM {
           case NNEW:
           case CALL:
           case NCALL:
+            final dest = b[p++];
+            final tgReg = b[p++];
+            final fieldId = b[p++];
+            final args = b[p++];
+
+            var target:Dynamic = regs[tgReg];
+            final methodName:String = this.constants[fieldId];
+
+            final argRegisters:Array<Int> = cast(regs[args] ?? [], Array<Dynamic>).map(v -> (v : Int));
+            final runtimeArgs:Array<Dynamic> = [for (regId in argRegisters) regs[regId]];
+
+            var wrapper:Scriptable = (target is Scriptable) ? cast target : null;
+            var tgObj:Dynamic = (wrapper != null) ? wrapper.parent : target;
+            var result:Dynamic = null;
+
+            if (wrapper != null) wrapper.bypassScript = true;
+            try {
+              var nativeFunc = Reflect.field(tgObj, methodName);
+
+              if (nativeFunc == null) {
+                BytemodErrorHandler.report(RuntimeError('Native method "$methodName" not found on target instance.'), this.scriptName, -1);
+                if (wrapper != null) wrapper.bypassScript = false;
+                return null;
+              }
+
+              result = Reflect.callMethod(tgObj, nativeFunc, runtimeArgs);
+            }
+            catch (e:Dynamic) {
+              if (wrapper != null) wrapper.bypassScript = false;
+              throw e;
+            }
+
+            if (wrapper != null) wrapper.bypassScript = false;
+            regs[dest] = result;
+
+            #if debug trace(OpCode.toString(op) + ' $target.$methodName -> R$dest ($runtimeArgs)'); #end
+
           case GETP:
+            final dest = b[p++];
+            final tgReg = b[p++];
+            final fieldId = b[p++];
+
+            var target:Dynamic = regs[tgReg];
+            final fieldName:String = this.constants[fieldId];
+            var val:Dynamic = null;
+
+            var wrapper:Scriptable = (target is Scriptable) ? cast target : null;
+
+            if (wrapper != null) {
+              // Check script fields first then parent object
+              if (wrapper.fields.exists(fieldName))
+                val = wrapper.fields.get(fieldName);
+              else if (wrapper.parent != null)
+                val = Reflect.getProperty(wrapper.parent, fieldName);
+            }
+            else if (target != null) {
+              val = Reflect.getProperty(target, fieldName);
+            }
+
+            regs[dest] = val;
+
+            #if debug trace(OpCode.toString(op) + ' this.$fieldName -> R$dest ($val)'); #end
+
           case SETP:
 
           case JMP:

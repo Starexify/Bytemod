@@ -285,17 +285,27 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     var name = read();
     var nameID = getConstantID(name);
     var typeID:Int = -1;
+    var valueID:Null<Int> = null;
 
     if (match(':')) typeID = parseType();
 
     // Parse the value
     if (match('=')) {
-      while (cursor < tokens.length && peek() != ';') {
-        read();
-      }
-    }
+      var tokenVal = read(); // eat the value
 
-    expect(';');
+      var parsedValue:Dynamic = tokenVal;
+      if (~/^[0-9]*\.?[0-9]+$/.match(tokenVal)) {
+        var num = Std.parseFloat(tokenVal);
+        parsedValue = (num == Std.int(num)) ? Std.int(num) : num;
+      }
+
+      valueID = getConstantID(parsedValue);
+
+      if (peek() == ';') match(';');
+    }
+    else {
+      expect(';');
+    }
 
     currentFields.set(name, {id: nameID, flags: flags});
 
@@ -305,7 +315,8 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       flags: flags,
       typeID: typeID,
       getterID: null,
-      setterID: null
+      setterID: null,
+      valueID: valueID
     };
   }
 
@@ -316,7 +327,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     var nameID = getConstantID(name);
     var returnTypeID:Int = -1;
 
-    this.registerCount = 0;
+    this.registerCount = 1;
     this.localVariables = new Map<String, Int>();
     this.registerValues = new Map();
 
@@ -502,6 +513,11 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
         this.bytecode.push(reg);
         this.bytecode.push(val);
       }
+      else if (val is Array) {
+        this.bytecode.push(OpCode.LDC);
+        this.bytecode.push(reg);
+        this.bytecode.push(getConstantID(val));
+      }
       else {
         this.bytecode.push(OpCode.LDC);
         this.bytecode.push(reg);
@@ -519,6 +535,38 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       var groupReg = parseExpression(0);
       expect(")");
       return groupReg;
+    }
+
+    // Check for super calls
+    if (t == "super") {
+      read(); // eat "super"
+      expect(".");
+      var methodName = read();
+      expect("(");
+
+      // Collect arguments
+      var argsRegisters:Array<Int> = [];
+      while (cursor < tokens.length && peek() != ")") {
+        var argReg = parseExpression(0);
+        ensureEmitted(argReg);
+        argsRegisters.push(argReg);
+        if (peek() == ",") read();
+      }
+      expect(")");
+
+
+      var arrayReg = nextRegister();
+      registerValues.set(arrayReg, argsRegisters);
+      ensureEmitted(arrayReg);
+
+      var destReg = nextRegister();
+      this.bytecode.push(OpCode.NCALL);
+      this.bytecode.push(destReg);
+      this.bytecode.push(0);
+      this.bytecode.push(getConstantID(methodName));
+      this.bytecode.push(arrayReg);
+
+      return destReg;
     }
 
     // Check for local variables
@@ -574,6 +622,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       return reg;
     }
 
+    // Check for fields (global, instance or parent/self)
     if (~/^[a-zA-Z_][a-zA-Z0-9_]*$/.match(t)) {
       var name = read();
 
@@ -581,10 +630,18 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
         var fieldName = read();
         var reg = nextRegister();
 
-        this.bytecode.push(OpCode.GETS);
-        this.bytecode.push(reg);
-        this.bytecode.push(getConstantID(name));
-        this.bytecode.push(getConstantID(fieldName));
+        if (name == "this" || name == "super") {
+          this.bytecode.push(OpCode.GETP);
+          this.bytecode.push(reg);
+          this.bytecode.push(0);
+          this.bytecode.push(getConstantID(fieldName));
+        }
+        else {
+          this.bytecode.push(OpCode.GETS);
+          this.bytecode.push(reg);
+          this.bytecode.push(getConstantID(name));
+          this.bytecode.push(getConstantID(fieldName));
+        }
         return reg;
       }
       fatal("Unknown identifier: " + name);

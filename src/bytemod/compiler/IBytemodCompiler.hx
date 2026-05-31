@@ -249,7 +249,8 @@ typedef VariableDefinition = {
   >FieldDefinition,
   typeID:Int,
   getterID:Null<Int>,
-  setterID:Null<Int>
+  setterID:Null<Int>,
+  valueID:Null<Int>
 }
 
 typedef MetadataEntry = {

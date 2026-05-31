@@ -61,7 +61,7 @@ class BytemodPrinter {
           output += 'R${read()}, Class[${read()}], args:${read()}, from:R${read()}';
 
         case CALL | NCALL:
-          output += 'R${read()}, R${read()}, .${getSym(read())}, args:${read()}, from:R${read()}';
+          output += 'R${read()}, R${read()}, .${getSym(read())}, args:R${read()}';
 
         case GETP | SETP:
           output += 'R${read()}, R${read()}, .${getSym(read())}';
