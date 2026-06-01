@@ -5,7 +5,6 @@ import bytemod.compiler.BytemodCompiler;
 import bytemod.compiler.BytemodHaxeCompiler;
 import bytemod.compiler.IBytemodCompiler;
 import bytemod.compiler.Modifier;
-import haxe.Timer;
 
 class BytemodScript {
   public var fileName:String;
@@ -42,8 +41,10 @@ class BytemodScript {
         if (field.flags.has(Modifier.Static)) {
           // Create a new Map for the class inside the VM's staticFields Map
           if (!BytemodVM.staticFields.exists(className)) BytemodVM.staticFields.set(className, new Map());
+          var valID:Null<Int> = Reflect.field(field, "valueID");
+          var initialValue = (valID != null && valID >= 0) ? data.constants[valID] : null;
 
-          BytemodVM.staticFields.get(className).set(fieldName, 100);
+          BytemodVM.staticFields.get(className).set(fieldName, initialValue);
           #if debug trace('Initialized Static: $className.$fieldName (Flags: ${field.flags})'); #end
         }
       }
@@ -58,9 +59,9 @@ class BytemodScript {
 
     #if debug
     for (func in functionMap.keys()) {
-      var start = Timer.stamp();
+      var start = haxe.Timer.stamp();
       var result = call(func);
-      var end = Timer.stamp();
+      var end = haxe.Timer.stamp();
       trace("Function call took: " + (end - start));
       trace(result);
     }
@@ -108,6 +109,8 @@ class BytemodScript {
   public function hasFunction(fullyQualifiedClass:String, functionName:String):Bool {
     return functionMap.exists(fullyQualifiedClass + "." + functionName);
   }
+
+//  public function toString() return "";
 }
 
 class Scriptable {
@@ -143,6 +146,8 @@ class Scriptable {
       break;
     }
   }
+
+//  public function toString() return "";
 }
 
 

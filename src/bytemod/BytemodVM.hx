@@ -27,6 +27,9 @@ class BytemodVM {
     var p = startAddress;
     #if debug trace(p, b); #end
 
+    trace(nativeFunctions);
+    trace(staticFields);
+
     #if debug Sys.println('--- STARTING REGISTRY $funcName EXECUTION ---'); #end
     try {
       while (p < b.length) {
@@ -72,9 +75,23 @@ class BytemodVM {
             }
             regs[dest] = res;
 
-          case NOT:
-          case BNOT:
-          case NEG:
+          case NOT | BNOT | NEG:
+            final dest = b[p++];
+            final val = regs[b[p++]];
+
+            var res:Int = 0;
+            switch(op) {
+              case NOT: res = (val == 0 ? 1 : 0);
+                #if debug trace(OpCode.toString(op) + ' R$dest !$val = $res'); #end
+              case BNOT: res = ~val;
+                #if debug trace(OpCode.toString(op) + ' R$dest ~$val = $res'); #end
+              case NEG: res = -val;
+                #if debug trace(OpCode.toString(op) + ' R$dest -$val = $res'); #end
+
+              default:
+                #if debug trace(OpCode.toString(op) + ' R$dest ?$val = $res'); #end
+            }
+            regs[dest] = res;
 
           case LDC:
             final r1 = b[p++];

@@ -539,6 +539,26 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   private function parsePrimary():Int {
     var t = peek();
 
+    // TODO: Fix preoperations like ~ - ! -- ++ if possible aswell...
+    // Check for preops
+    if (t == '~' || t == '!' || t == '-') {
+      read(); // eat the pre-op
+      var opcode:Int = switch (t) {
+        case "!": OpCode.NOT;
+        case "~": OpCode.BNOT;
+        case "-": OpCode.NEG;
+        default: fatal("Unsupported pre-operator: " + t);
+      }
+      var destreg = nextRegister();
+      var value = parseExpression(1);
+      this.bytecode.push(opcode);
+      this.bytecode.push(destreg);
+      this.bytecode.push(value);
+      trace(destreg, value);
+      trace(destreg, registerValues[value]);
+      return destreg;
+    }
+
     // Check for groups
     if (match("(")) {
       var groupReg = parseExpression(0);
@@ -562,7 +582,6 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
         if (peek() == ",") read();
       }
       expect(")");
-
 
       var arrayReg = nextRegister();
       registerValues.set(arrayReg, argsRegisters);
