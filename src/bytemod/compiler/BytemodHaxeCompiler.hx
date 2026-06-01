@@ -550,12 +550,12 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
         default: fatal("Unsupported pre-operator: " + t);
       }
       var destreg = nextRegister();
-      var value = parseExpression(1);
+      var value = parseExpression(6);
+      ensureEmitted(value);
+
       this.bytecode.push(opcode);
       this.bytecode.push(destreg);
       this.bytecode.push(value);
-      trace(destreg, value);
-      trace(destreg, registerValues[value]);
       return destreg;
     }
 

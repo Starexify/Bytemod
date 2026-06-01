@@ -10,18 +10,21 @@ class TestClas {
 //    return TestClass.e;
 //  }
 //
-  static var e = 100;
+//  static var e = 100;
 //  function testGetSS() {
 //    return e;
 //  }
 //
 
-  static var f = 10;
-  static final g = 15;
-  final h = 20;
-  var i = 30;
-  static function testFunc():Float {
-    return haxe.Timer.stamp();
+//  static var f = 10;
+//  static final g = 15;
+//  final h = 20;
+//  var i = 30;
+//  static function testFunc():Float {
+//    return haxe.Timer.stamp();
+//  }
+  static function test() {
+    return -10 + 10;
   }
 }
 
