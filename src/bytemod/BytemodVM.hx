@@ -32,7 +32,8 @@ class BytemodVM {
       while (p < b.length) {
         var op:OpCode = b[p++];
         switch (op) {
-          case ADD | SUB | MUL | DIV:
+          case ADD | SUB | MUL | DIV | MOD
+          | AND | OR | XOR | SHL | SHR | USHR:
             final dest = b[p++];
             final left = b[p++];
             final right = b[p++];
@@ -50,18 +51,26 @@ class BytemodVM {
                 #if debug trace(OpCode.toString(op) + ' R$dest $valA * $valB = $res'); #end
               case DIV: res = valA / (valB == 0 ? 1 : valB);
                 #if debug trace(OpCode.toString(op) + ' R$dest $valA / $valB = $res'); #end
+              case MOD: res = valA % valB;
+                #if debug trace(OpCode.toString(op) + ' R$dest $valA % $valB = $res'); #end
+
+              case AND: res = valA & valB;
+                #if debug trace(OpCode.toString(op) + ' R$dest $valA & $valB = $res'); #end
+              case OR: res = valA | valB;
+                #if debug trace(OpCode.toString(op) + ' R$dest $valA | $valB = $res'); #end
+              case XOR: res = valA ^ valB;
+                #if debug trace(OpCode.toString(op) + ' R$dest $valA ^ $valB = $res'); #end
+              case SHL: res = valA << valB;
+                #if debug trace(OpCode.toString(op) + ' R$dest $valA << $valB = $res'); #end
+              case SHR: res = valA >> valB;
+                #if debug trace(OpCode.toString(op) + ' R$dest $valA >> $valB = $res'); #end
+              case USHR: res = valA >>> valB;
+                #if debug trace(OpCode.toString(op) + ' R$dest $valA >>> $valB = $res'); #end
+
               default:
+                #if debug trace(OpCode.toString(op) + ' R$dest $valA ? $valB = $res'); #end
             }
             regs[dest] = res;
-
-          case MOD:
-
-          case AND:
-          case OR:
-          case XOR:
-          case SHL:
-          case SHR:
-          case USHR:
 
           case NOT:
           case BNOT:

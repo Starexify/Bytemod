@@ -488,6 +488,15 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
         case "-": OpCode.SUB;
         case "*": OpCode.MUL;
         case "/": OpCode.DIV;
+        case "%": OpCode.MOD;
+
+        case "&": OpCode.AND;
+        case "|": OpCode.OR;
+        case "^": OpCode.XOR;
+        case "<<": OpCode.SHL;
+        case ">>": OpCode.SHR;
+        case ">>>": OpCode.USHR;
+
         case "==": OpCode.EQ;
         case "<": OpCode.LT;
         case ">": OpCode.GT;
@@ -651,10 +660,11 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     return -1;
   }
 
+  // TODO: Check if precedence is correct with tests !
   private function getPrecedence(op:String):Int {
     return switch (op) {
       case "||": 1;
-      case "&&": 2;
+      case "&&" | "&" | "|" | "^" | "<<" | ">>" | ">>>": 2;
       case "==" | "!=": 3;
       case "<" | ">" | "<=" | ">=": 4;
       case "+" | "-": 5;
