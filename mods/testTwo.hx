@@ -24,8 +24,8 @@ class TestClas {
 //    return haxe.Timer.stamp();
 //  }
   static function test() {
-    var i = 1;
-    return -i;
+    var i = haxe.Timer.stamp();
+    return haxe.Timer.stamp();
   }
 }
 

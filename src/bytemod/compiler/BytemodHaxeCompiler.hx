@@ -5,6 +5,27 @@ import Type.ValueType;
 
 using StringTools;
 
+// TODO: FIX "test" + 1 to show or work as test1.
+// TODO: FIX return; for Void functions
+// TODO: FIX packages
+// TODO: IMPLEMENT function calls (recursive and such), lambda, and callbacks (also fix locals to be allowed in callbacks and such)
+// TODO: IMPLEMENT more statements (if, while, do while, switch, for, try catch)
+// TODO: IMPLEMENT String Interpolation
+// TODO: IMPLEMENT import/usings
+// TODO: IMPLEMENT import.hx
+// TODO: IMPLEMENT function args
+// TODO: IMPLEMENT inlines/finals or constants in the compiler (via config best for compile speed)
+// TODO: IMPLEMENT typecheck (via config and ONLY COMPILER aswell, maybe in the future but this would make compilation slow but atleast provide better errors)
+// TODO: IMPLEMENT private access and checks (via config and ONLY COMPILER aswell so we don't do checks at runtime for better speed)
+// TODO: IMPLEMENT correct inheritance checks (via config ONLY COMPILER again)
+// TODO: IMPLEMENT tracing builtin compiler
+// TODO: IMPLEMENT Bytecode Mixins (runtime macros?)
+// TODO: IMPLEMENT sex
+// TODO: IMPLEMENT preprocessors.
+// TODO: IMPLEMENT linker?(calls/inheritance etc between scripts)
+// TODO: IMPLEMENT Arrays/Maps and such data types
+// TODO: IMPLEMENT a way to use bytecode from haxe code maybe?
+// TODO: IMPLEMENT Wildcards
 class BytemodHaxeCompiler implements IBytemodCompiler {
   public var fileName:Null<String> = null;
   private var tokens:Array<Token> = [];
@@ -145,8 +166,8 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
     switch t {
       case 'import':
-        var parts = path.split('.');
-        var alias = parts[parts.length - 1];
+        final parts = path.split('.');
+        final alias = parts[parts.length - 1];
         importMap.set(alias, path);
 
       case 'using':
