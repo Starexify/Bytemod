@@ -38,13 +38,17 @@ class BytemodPrinter {
 
       var output = '[${toHex(addr)}] ${OpCode.toString(op)} ';
       switch op {
-        // 3-Register Ops: R_dest, R_srcA, R_srcB
+        // 3-Register Ops: R_dest, R_left, R_right
         case ADD | SUB | MUL | DIV | MOD | AND | OR | XOR | SHL | SHR | USHR | EQ | NEQ | LT | GT | LTE | GTE | IS:
           output += 'R${read()}, R${read()}, R${read()}';
 
         // 2-Register Ops: R_dest, R_src
-        case MOV | NOT | BNOT | NEG | INC | DEC:
+        case MOV | NOT | BNOT | NEG:
           output += 'R${read()}, R${read()}';
+
+        // 1-Register Ops: R_target
+        case INC | DEC:
+          output += 'R${read()}';
 
         // Constant/Immediate Ops: R_dest, Index
         case LDC:

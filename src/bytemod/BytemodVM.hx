@@ -39,32 +39,29 @@ class BytemodVM {
           | AND | OR | XOR | SHL | SHR | USHR
           | EQ | NEQ | LT | GT | LTE | GTE:
             final dest = b[p++];
-            final left = b[p++];
-            final right = b[p++];
+            final left = regs[b[p++]];
+            final right = regs[b[p++]];
 
-            final valA = regs[left];
-            final valB = regs[right];
+            regs[dest] = switch op {
+              case ADD: left + right;
+              case SUB: left - right;
+              case MUL: left * right;
+              case DIV: left / (right == 0 ? 1 : right);
+              case MOD: left % right;
 
-            var res:Float = switch op {
-              case ADD: valA + valB;
-              case SUB: valA - valB;
-              case MUL: valA * valB;
-              case DIV: valA / (valB == 0 ? 1 : valB);
-              case MOD: valA % valB;
+              case AND: left & right;
+              case OR: left | right;
+              case XOR: left ^ right;
+              case SHL: left << right;
+              case SHR: left >> right;
+              case USHR: left >>> right;
 
-              case AND: valA & valB;
-              case OR: valA | valB;
-              case XOR: valA ^ valB;
-              case SHL: valA << valB;
-              case SHR: valA >> valB;
-              case USHR: valA >>> valB;
-
-              case EQ: valA == valB ? 1 : 0;
-              case NEQ: valA != valB ? 1 : 0;
-              case LT: valA < valB ? 1 : 0;
-              case GT: valA > valB ? 1 : 0;
-              case LTE: valA <= valB ? 1 : 0;
-              case GTE: valA >= valB ? 1 : 0;
+              case EQ: left == right ? 1 : 0;
+              case NEQ: left != right ? 1 : 0;
+              case LT: left < right ? 1 : 0;
+              case GT: left > right ? 1 : 0;
+              case LTE: left <= right ? 1 : 0;
+              case GTE: left >= right ? 1 : 0;
 
               default: 0;
             }
@@ -93,16 +90,14 @@ class BytemodVM {
 
               default: 'UNKNOWN_SYM';
             }
-            trace(OpCode.toString(op) + ' R$dest $valA $opSign $valB = $res');
+            trace(OpCode.toString(op) + ' R$dest $left $opSign $right = ${regs[dest]}');
             #end
-
-            regs[dest] = res;
 
           case NOT | BNOT | NEG:
             final dest = b[p++];
             final val = regs[b[p++]];
 
-            final res:Int = switch op {
+            regs[dest] = switch op {
               case NOT: (val == 0 ? 1 : 0);
               case BNOT: ~val;
               case NEG: -val;
@@ -111,28 +106,29 @@ class BytemodVM {
 
             #if debug
             var opSign = op == NOT ? "!" : (op == BNOT ? "~" : "-");
-            trace('${OpCode.toString(op)} R$dest $opSign$val = $res');
+            trace('${OpCode.toString(op)} R$dest $opSign$val = ${regs[dest]}');
             #end
-
-            regs[dest] = res;
 
           case LDC:
             final r1 = b[p++];
             final constIdx = b[p++];
             final val:Dynamic = this.constants[constIdx];
             regs[r1] = val;
+
             #if debug trace(OpCode.toString(op) + ' R$r1 c[$val]'); #end
 
           case LDI:
             final r1 = b[p++];
             final i_val = b[p++];
             regs[r1] = i_val;
+
             #if debug trace(OpCode.toString(op) + ' R$r1 $i_val'); #end
 
           case MOV:
             final dest = b[p++];
             final src = b[p++];
             regs[dest] = regs[src];
+
             #if debug trace(OpCode.toString(op) + ' R$src -> R$dest'); #end
 
           case GETS:
@@ -238,13 +234,24 @@ class BytemodVM {
           case JGT:
           case JEQ:
           case RET:
-            final regIdx = b[p++];
-            final r1 = regs[regIdx];
-            #if debug trace(OpCode.toString(op), r1); #end
-            return r1;
+            final dest = b[p++];
+            #if debug trace(OpCode.toString(op), 'R$dest ${Std.string(regs[dest])}'); #end
+            return regs[dest];
 
-          case INC:
-          case DEC:
+          case INC | DEC:
+            final dest = b[p++];
+            final val = regs[dest];
+
+            regs[dest] = switch op {
+              case INC: val + 1;
+              case DEC: val - 1;
+              default:  0;
+            };
+
+            #if debug
+            var opSign = (op == INC ? '++' : '--');
+            trace(OpCode.toString(op) + ' R$dest ($opSign$val = ${regs[dest]})');
+            #end
 
           default:
             #if debug trace('Unknown OpCode: ${OpCode.toString(op)} at PC: $p'); #end

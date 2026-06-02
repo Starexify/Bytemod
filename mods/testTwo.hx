@@ -24,7 +24,8 @@ class TestClas {
 //    return haxe.Timer.stamp();
 //  }
   static function test() {
-    return 11 <= 10;
+    var i = 1;
+    return -i;
   }
 }
 

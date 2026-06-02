@@ -455,7 +455,11 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
     // Nothing else is yet allowed so we just read it forever untill reaching the end of the field/function
     while (cursor < this.tokens.length && peek() != ';' && peek() != '}') {
-      read();
+      var exprReg = parseExpression(0);
+
+      ensureEmitted(exprReg);
+      match(';');
+      return;
     }
   }
 
@@ -543,7 +547,6 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   private function parsePrimary():Int {
     var t = peek();
 
-    // TODO: Fix preoperations like ~ - ! -- ++ if possible aswell...
     // Check for preops
     if (t == '~' || t == '!' || t == '-') {
       read(); // eat the pre-op
@@ -561,6 +564,16 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       this.bytecode.push(destreg);
       this.bytecode.push(value);
       return destreg;
+    }
+    if (t == '++' || t == '--') {
+      read(); // eat the ++ or --
+      var name = read();
+      var reg = localVariables.get(name);
+
+      this.bytecode.push(t == '++' ? OpCode.INC : OpCode.DEC);
+      this.bytecode.push(reg);
+
+      return reg;
     }
 
     // Check for groups
@@ -603,8 +616,24 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
     // Check for local variables
     if (localVariables.exists(t)) {
-      read();
-      return localVariables.get(t);
+      var name = read();
+      var origReg = localVariables.get(name);
+
+      // Handle post-ops
+      if (peek() == '++' || peek() == '--') {
+        var op = read(); // eat the ++ or --
+
+        var tempReg = nextRegister();
+        this.bytecode.push(OpCode.MOV);
+        this.bytecode.push(tempReg);
+        this.bytecode.push(origReg);
+
+        this.bytecode.push(op == '++' ? OpCode.INC : OpCode.DEC);
+        this.bytecode.push(origReg);
+
+        return tempReg;
+      }
+      return origReg;
     }
 
     // Check for class fields
