@@ -12,7 +12,7 @@ class BytemodErrorHandler {
     var prefix = "";
     var message = "";
 
-    switch (type) {
+    switch type {
       case CompileError(msg):
         prefix = "Compile Error";
         message = msg;

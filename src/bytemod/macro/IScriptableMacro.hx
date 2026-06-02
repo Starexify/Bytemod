@@ -56,7 +56,7 @@ class IScriptableMacro {
       #if debug Sys.println(' Skipping injection: $className inherits script properties from parent class.'); #end
 
     for (f in fields) {
-      switch (f.kind) {
+      switch f.kind {
         case FFun(func):
           if (f.name == "new" || f.name == "_callScriptFunc") continue;
 

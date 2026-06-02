@@ -61,7 +61,7 @@ enum abstract OpCode(Int) from Int to Int {
   var DEC  = 40; // R1--
 
   public static function toString(op:Int):String {
-    return switch (op) {
+    return switch op {
       case ADD: "ADD";
       case SUB: "SUB";
       case MUL: "MUL";

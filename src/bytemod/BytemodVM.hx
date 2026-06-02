@@ -34,9 +34,10 @@ class BytemodVM {
     try {
       while (p < b.length) {
         var op:OpCode = b[p++];
-        switch (op) {
+        switch op {
           case ADD | SUB | MUL | DIV | MOD
-          | AND | OR | XOR | SHL | SHR | USHR:
+          | AND | OR | XOR | SHL | SHR | USHR
+          | EQ | NEQ | LT | GT | LTE | GTE:
             final dest = b[p++];
             final left = b[p++];
             final right = b[p++];
@@ -44,42 +45,64 @@ class BytemodVM {
             final valA = regs[left];
             final valB = regs[right];
 
-            var res:Float = 0;
-            switch(op) {
-              case ADD: res = valA + valB;
-                #if debug trace(OpCode.toString(op) + ' R$dest $valA + $valB = $res'); #end
-              case SUB: res = valA - valB;
-                #if debug trace(OpCode.toString(op) + ' R$dest $valA - $valB = $res'); #end
-              case MUL: res = valA * valB;
-                #if debug trace(OpCode.toString(op) + ' R$dest $valA * $valB = $res'); #end
-              case DIV: res = valA / (valB == 0 ? 1 : valB);
-                #if debug trace(OpCode.toString(op) + ' R$dest $valA / $valB = $res'); #end
-              case MOD: res = valA % valB;
-                #if debug trace(OpCode.toString(op) + ' R$dest $valA % $valB = $res'); #end
+            var res:Float = switch op {
+              case ADD: valA + valB;
+              case SUB: valA - valB;
+              case MUL: valA * valB;
+              case DIV: valA / (valB == 0 ? 1 : valB);
+              case MOD: valA % valB;
 
-              case AND: res = valA & valB;
-                #if debug trace(OpCode.toString(op) + ' R$dest $valA & $valB = $res'); #end
-              case OR: res = valA | valB;
-                #if debug trace(OpCode.toString(op) + ' R$dest $valA | $valB = $res'); #end
-              case XOR: res = valA ^ valB;
-                #if debug trace(OpCode.toString(op) + ' R$dest $valA ^ $valB = $res'); #end
-              case SHL: res = valA << valB;
-                #if debug trace(OpCode.toString(op) + ' R$dest $valA << $valB = $res'); #end
-              case SHR: res = valA >> valB;
-                #if debug trace(OpCode.toString(op) + ' R$dest $valA >> $valB = $res'); #end
-              case USHR: res = valA >>> valB;
-                #if debug trace(OpCode.toString(op) + ' R$dest $valA >>> $valB = $res'); #end
+              case AND: valA & valB;
+              case OR: valA | valB;
+              case XOR: valA ^ valB;
+              case SHL: valA << valB;
+              case SHR: valA >> valB;
+              case USHR: valA >>> valB;
 
-              default:
-                #if debug trace(OpCode.toString(op) + ' R$dest $valA ? $valB = $res'); #end
+              case EQ: valA == valB ? 1 : 0;
+              case NEQ: valA != valB ? 1 : 0;
+              case LT: valA < valB ? 1 : 0;
+              case GT: valA > valB ? 1 : 0;
+              case LTE: valA <= valB ? 1 : 0;
+              case GTE: valA >= valB ? 1 : 0;
+
+              default: 0;
             }
+
+            #if debug
+            var opSign = switch op {
+              case ADD: '+';
+              case SUB: '-';
+              case MUL: '*';
+              case DIV: '/';
+              case MOD: '%';
+
+              case AND: '&';
+              case OR: '|';
+              case XOR: '^';
+              case SHL: '<<';
+              case SHR: '>>';
+              case USHR: '>>>';
+
+              case EQ: '==';
+              case NEQ: '!=';
+              case LT: '<';
+              case GT: '>';
+              case GTE: '>=';
+              case LTE: '<=';
+
+              default: 'UNKNOWN_SYM';
+            }
+            trace(OpCode.toString(op) + ' R$dest $valA $opSign $valB = $res');
+            #end
+
             regs[dest] = res;
 
           case NOT | BNOT | NEG:
             final dest = b[p++];
             final val = regs[b[p++]];
 
-            final res:Int = switch(op) {
+            final res:Int = switch op {
               case NOT: (val == 0 ? 1 : 0);
               case BNOT: ~val;
               case NEG: -val;
@@ -137,12 +160,6 @@ class BytemodVM {
 
           case SETS:
 
-          case EQ:
-          case NEQ:
-          case LT:
-          case GT:
-          case LTE:
-          case GTE:
           case IS:
 
           case NEW:

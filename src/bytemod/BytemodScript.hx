@@ -20,7 +20,7 @@ class BytemodScript {
     this.vm = new BytemodVM();
     vm.scriptName = fileName;
 
-    final compiler:IBytemodCompiler = switch (fileType) {
+    final compiler:IBytemodCompiler = switch fileType {
       case "Bytemod": new BytemodCompiler();
       case "Haxe": new BytemodHaxeCompiler(fileName);
       default: throw "Unsupported script file type: " + fileType;

@@ -89,7 +89,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
         if (cursor >= this.tokens.length) break;
 
         var t = peek();
-        switch (t) {
+        switch t {
           case 'class': classes.push(parseClass(meta));
           case 'enum': enums.push(parseEnum(meta));
           case 'interface', 'typedef', 'abstract': skipTypeDefinition();
@@ -143,7 +143,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
     expect(';');
 
-    switch (t) {
+    switch t {
       case 'import':
         var parts = path.split('.');
         var alias = parts[parts.length - 1];
@@ -216,7 +216,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       var collecting = true;
       while (cursor < tokens.length && collecting) {
         var t = peek();
-        switch (t) {
+        switch t {
           case 'public': read(); flags = flags.set(Modifier.Public);
           case 'private': read(); flags = flags.set(Modifier.Private);
           case 'static': read(); flags = flags.set(Modifier.Static);
@@ -483,7 +483,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       ensureEmitted(rightReg);
 
       var destReg = nextRegister();
-      var opcode:Int = switch (op) {
+      var opcode:Int = switch op {
         case "+": OpCode.ADD;
         case "-": OpCode.SUB;
         case "*": OpCode.MUL;
@@ -498,8 +498,12 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
         case ">>>": OpCode.USHR;
 
         case "==": OpCode.EQ;
+        case "!=": OpCode.NEQ;
         case "<": OpCode.LT;
         case ">": OpCode.GT;
+        case "<=": OpCode.LTE;
+        case ">=": OpCode.GTE;
+
         default: fatal("Unsupported operator: " + op);
       };
 
@@ -543,10 +547,10 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     // Check for preops
     if (t == '~' || t == '!' || t == '-') {
       read(); // eat the pre-op
-      var opcode:Int = switch (t) {
-        case "!": OpCode.NOT;
-        case "~": OpCode.BNOT;
-        case "-": OpCode.NEG;
+      var opcode:Int = switch t {
+        case '!': OpCode.NOT;
+        case '~': OpCode.BNOT;
+        case '-': OpCode.NEG;
         default: fatal("Unsupported pre-operator: " + t);
       }
       var destreg = nextRegister();
@@ -681,7 +685,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
   // TODO: Check if precedence is correct with tests !
   private function getPrecedence(op:String):Int {
-    return switch (op) {
+    return switch op {
       case "||": 1;
       case "&&" | "&" | "|" | "^" | "<<" | ">>" | ">>>": 2;
       case "==" | "!=": 3;
@@ -734,7 +738,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     var key:String = "";
     var type = Type.typeof(value);
 
-    switch (type) {
+    switch type {
       case TInt: key = "i_" + value;
       case TFloat: key = "f_" + value;
       case TBool: key = "b_" + (value ? "true" : "false");
