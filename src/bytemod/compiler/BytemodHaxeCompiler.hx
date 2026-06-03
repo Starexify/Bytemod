@@ -6,7 +6,6 @@ import Type.ValueType;
 using StringTools;
 
 // TODO: FIX "test" + 1 to show or work as test1.
-// TODO: FIX return; for Void functions
 // TODO: FIX packages
 // TODO: IMPLEMENT function calls (recursive and such), lambda, and callbacks (also fix locals to be allowed in callbacks and such)
 // TODO: IMPLEMENT more statements (if, while, do while, switch, for, try catch)
@@ -20,7 +19,6 @@ using StringTools;
 // TODO: IMPLEMENT correct inheritance checks (via config ONLY COMPILER again)
 // TODO: IMPLEMENT tracing builtin compiler
 // TODO: IMPLEMENT Bytecode Mixins (runtime macros?)
-// TODO: IMPLEMENT sex
 // TODO: IMPLEMENT preprocessors.
 // TODO: IMPLEMENT linker?(calls/inheritance etc between scripts)
 // TODO: IMPLEMENT Arrays/Maps and such data types
@@ -397,6 +395,21 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       startAddress = -1;
     }
 
+    // Check end return.
+    if (startAddress != -1) {
+      var retTypeName = (returnTypeID != -1) ? this.constants[returnTypeID] : "Void";
+      var endsWithRet = (this.bytecode.length >= 2 && this.bytecode[this.bytecode.length - 2] == OpCode.RET);
+      if (retTypeName == "Void" && !endsWithRet) {
+        this.bytecode.push(OpCode.RET);
+        this.bytecode.push(-1);
+      }
+      #if BYTEMOD_STRICT_COMP
+      else {
+        if (!endsWithRet) fatal('Missing return $retTypeName for function "$name".');
+      }
+      #end
+    }
+
     return {
       metadata: meta,
       nameID: nameID,
@@ -424,6 +437,15 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
   public function parseStatement(?tokens:Array<Token>):Void {
     if (match("return")) {
+      // Handle void return
+      if (peek() == ";") {
+        this.bytecode.push(OpCode.RET);
+        this.bytecode.push(-1); // void return
+        match(";");
+        return;
+      }
+
+      // Handle return with expression
       var reg = parseExpression();
       ensureEmitted(reg);
 

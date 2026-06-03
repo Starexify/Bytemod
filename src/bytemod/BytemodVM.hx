@@ -235,8 +235,8 @@ class BytemodVM {
           case JEQ:
           case RET:
             final dest = b[p++];
-            #if debug trace(OpCode.toString(op), 'R$dest ${Std.string(regs[dest])}'); #end
-            return regs[dest];
+            #if debug trace(OpCode.toString(op), 'R$dest ${Std.string((dest == -1) ? null : regs[dest])}'); #end
+            return (dest == -1) ? null : regs[dest];
 
           case INC | DEC:
             final dest = b[p++];

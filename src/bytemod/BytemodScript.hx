@@ -138,7 +138,7 @@ class Scriptable {
         if (field.flags.has(Modifier.Static)) continue;
 
         var fieldName = script.data.constants[field.nameID];
-        var valID:Null<Int> = Reflect.field(field, "valueID");
+        var valID:Null<Int> = Reflect.field(field, "valueID"); // Use Reflect instead of cast because HashLink doesn't like it
         var initialValue = (valID != null && valID >= 0) ? script.data.constants[valID] : null;
 
         this.fields.set(fieldName, initialValue);

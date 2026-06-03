@@ -8,6 +8,7 @@ class Build {
 
     // haxe --run Build --verbose
     if (args.contains("--verbose")) VERBOSE = true;
+    var isStrict = args.contains("--strict") || args.contains("strict");
 
     // haxe --run Build clean
     if (args.contains("clean")) {
@@ -21,11 +22,19 @@ class Build {
       //Sys.command("gcc", ["-shared", "-fPIC", "test.c", "-lhl", "-lSDL3", "-o", "test.hdll"]);
 
       log("Compiling Haxe to HL...");
-      Sys.command("haxe", [
+      var haxeArgs = [
         "-cp", "src",
         "-main", "Main",
         "-hl", "bin/hl/out.hl"
-      ]);
+      ];
+
+      // Apply strict compilation
+      if (isStrict) {
+        haxeArgs.push("-D");
+        haxeArgs.push("BYTEMOD_STRICT_COMP");
+      }
+
+      Sys.command("haxe", haxeArgs);
 
       log("Running...");
       Sys.command("hl", ["bin/hl/out.hl"]);
@@ -49,6 +58,11 @@ class Build {
         haxeArgs.push("debug");
       }
 
+      if (isStrict) {
+        haxeArgs.push("-D");
+        haxeArgs.push("BYTEMOD_STRICT_COMP");
+      }
+
       Sys.command("haxe", haxeArgs);
 
       log("Compiling Native...");
@@ -69,15 +83,21 @@ class Build {
     // haxe --run Build hxcpp
     if (args.contains("hxcpp")) {
       log("Compiling HXCPP...");
-      var exitCode = Sys.command("haxe", [
+      var haxeArgs = [
         "-cp", "src",
         "-lib", "hxcpp",
         "-main", "Main",
         "-cpp", "build/cpp",
         "-D", "analyzer-optimize",
-      ]);
+      ];
+
+      if (isStrict) {
+        haxeArgs.push("-D");
+        haxeArgs.push("BYTEMOD_STRICT_COMP");
+      }
 
       // Move the executable in bin
+      var exitCode = Sys.command("haxe", haxeArgs);
       if (exitCode != 0) return;
 
       var exeName = "Main";
