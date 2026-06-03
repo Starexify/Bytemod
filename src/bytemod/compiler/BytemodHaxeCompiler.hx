@@ -7,7 +7,6 @@ using StringTools;
 
 // TODO: FIX variable cant be declared as booleans for some reason and instead Strings ?
 // TODO: FIX packages
-// TODO: FIX Floats not being used in arithemtic operators (like Math.PI)
 // TODO: OPTIMIZE Use reverse logic trick for jumps ( A <= B -> B > A )
 // TODO: ADD Allow default and optional arguments in functions and lambdas (when added)!
 // TODO: IMPLEMENT binary and hexadecimal values

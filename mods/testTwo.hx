@@ -24,9 +24,9 @@ class TestClas {
 //    return haxe.Timer.stamp();
 //  }
   function test(amount:Int) {
-    if (0) return 99;
+    if (100 < 110) return 99.9 + 9.2;
 
-    return 100;
+    return Math.PI;
   }
 }
 

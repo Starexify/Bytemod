@@ -35,12 +35,10 @@ class BytemodVM {
       while (p < b.length) {
         var op:OpCode = b[p++];
         switch op {
-          case ADD | SUB | MUL | DIV | MOD
-          | AND | OR | XOR | SHL | SHR | USHR
-          | EQ | NEQ | LT | GT | LTE | GTE:
+          case ADD | SUB | MUL | DIV | MOD:
             final dest = b[p++];
-            final left = regs[b[p++]];
-            final right = regs[b[p++]];
+            final left:Dynamic = regs[b[p++]];
+            final right:Dynamic = regs[b[p++]];
 
             regs[dest] = switch op {
               case ADD: left + right;
@@ -49,51 +47,41 @@ class BytemodVM {
               case DIV: left / (right == 0 ? 1 : right);
               case MOD: left % right;
 
+              default: 0;
+            }
+
+            #if debug
+            var opSign = switch op {
+              case ADD: '+'; case SUB: '-'; case MUL: '*'; case DIV: '/'; case MOD: '%';
+              default: '?';
+            }
+            trace(OpCode.toString(op) + ' R$dest $left $opSign $right = ${regs[dest]}');
+            #end
+
+          case AND | OR | XOR | SHL | SHR | USHR:
+            final dest = b[p++];
+            final left = regs[b[p++]];
+            final right = regs[b[p++]];
+
+            regs[dest] = switch op {
               case AND: left & right;
               case OR: left | right;
               case XOR: left ^ right;
               case SHL: left << right;
               case SHR: left >> right;
               case USHR: left >>> right;
-
-              case EQ: left == right ? 1 : 0;
-              case NEQ: left != right ? 1 : 0;
-              case LT: left < right ? 1 : 0;
-              case GT: left > right ? 1 : 0;
-              case LTE: left <= right ? 1 : 0;
-              case GTE: left >= right ? 1 : 0;
-
               default: 0;
             }
 
             #if debug
             var opSign = switch op {
-              case ADD: '+';
-              case SUB: '-';
-              case MUL: '*';
-              case DIV: '/';
-              case MOD: '%';
-
-              case AND: '&';
-              case OR: '|';
-              case XOR: '^';
-              case SHL: '<<';
-              case SHR: '>>';
-              case USHR: '>>>';
-
-              case EQ: '==';
-              case NEQ: '!=';
-              case LT: '<';
-              case GT: '>';
-              case GTE: '>=';
-              case LTE: '<=';
-
-              default: 'UNKNOWN_SYM';
+              case AND: '&'; case OR: '|'; case XOR: '^'; case SHL: '<<'; case SHR: '>>'; case USHR: '>>>';
+              default: '?';
             }
             trace(OpCode.toString(op) + ' R$dest $left $opSign $right = ${regs[dest]}');
             #end
 
-          case LAND | LOR:
+          case LAND | LOR | EQ | NEQ | LT | GT | LTE | GTE:
             final dest = b[p++];
             final left:Dynamic = regs[b[p++]];
             final right:Dynamic = regs[b[p++]];
@@ -101,11 +89,22 @@ class BytemodVM {
             regs[dest] = switch op {
               case LAND: left && right;
               case LOR:  left || right;
+
+              case EQ: left == right;
+              case NEQ: left != right;
+              case LT: left < right;
+              case GT: left > right;
+              case LTE: left <= right;
+              case GTE: left >= right;
               default: false;
             }
 
             #if debug
-            var opSign = op == LAND ? '&&' : '||';
+            var opSign = switch op {
+              case LAND: '&&'; case LOR: '||';
+              case EQ: '=='; case NEQ: '!='; case LT: '<'; case GT: '>'; case GTE: '>='; case LTE: '<=';
+              default: '?';
+            }
             trace(OpCode.toString(op) + ' R$dest $left $opSign $right = ${regs[dest]}');
             #end
 
