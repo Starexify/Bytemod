@@ -1,0 +1,14 @@
+package atest;
+
+import haxe.Timer;
+import Main.TestClass;
+import test.TestClassOne;
+
+using StringTools;
+
+class TestClas {
+  function test() {
+
+    return 1;
+  }
+}

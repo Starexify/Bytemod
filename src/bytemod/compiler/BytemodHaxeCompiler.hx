@@ -5,13 +5,17 @@ import Type.ValueType;
 
 using StringTools;
 
+// TODO: OPTIMIZE Use reverse logic trick for jumps ( A <= B -> B > A )
+// TODO: ADD Allow default and optional arguments in functions and lambdas (when added)!
 // TODO: FIX packages
+// TODO: FIX Floats not being used in arithemtic operators (like Math.PI)
+// TODO: IMPLEMENT binary and hexadecimal values
+// TODO: IMPLEMENT Null Coalescing operators, ternary and such
 // TODO: IMPLEMENT String Interpolation
 // TODO: IMPLEMENT function calls (recursive and such), lambda, and callbacks (also fix locals to be allowed in callbacks and such)
 // TODO: IMPLEMENT more statements (if, while, do while, switch, for, try catch)
 // TODO: IMPLEMENT import/usings
 // TODO: IMPLEMENT import.hx
-// TODO: IMPLEMENT function args
 // TODO: IMPLEMENT inlines/finals or constants in the compiler (via config best for compile speed)
 // TODO: IMPLEMENT typecheck (via config and ONLY COMPILER aswell, maybe in the future but this would make compilation slow but atleast provide better errors)
 // TODO: IMPLEMENT private access and checks (via config and ONLY COMPILER aswell so we don't do checks at runtime for better speed)
@@ -23,6 +27,7 @@ using StringTools;
 // TODO: IMPLEMENT Arrays/Maps and such data types
 // TODO: IMPLEMENT a way to use bytecode from haxe code maybe?
 // TODO: IMPLEMENT Wildcards
+// TODO: IMPLEMENT Operator Overload and other custom metadatas
 class BytemodHaxeCompiler implements IBytemodCompiler {
   public var fileName:Null<String> = null;
   private var tokens:Array<Token> = [];

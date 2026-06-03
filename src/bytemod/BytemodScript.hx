@@ -76,6 +76,12 @@ class BytemodScript {
       BytemodErrorHandler.report(BytemodErrorType.RuntimeError('Function "$name" not found in ${fileName}'), fileName);
       return null;
     }
+
+    // Add arguments
+    if (args != null) {
+      for (i in 0...args.length) vm.registers[i + 1] = args[i];
+    }
+
     return vm.execute(data.bytecode, functionMap.get(name), name);
   }
 

@@ -228,11 +228,46 @@ class BytemodVM {
           case SETP:
 
           case JMP:
-          case JZ:
-          case JNZ:
-          case JLT:
-          case JGT:
-          case JEQ:
+            final dest = b[p++];
+            p = dest;
+
+            #if debug trace(OpCode.toString(op) + ' -> $dest'); #end
+
+          case JZ | JNZ:
+            final val = regs[b[p++]];
+            final dest = b[p++];
+
+            final check:Bool = op == JZ ? (val == 0 || val == false) : (val != 0 && val != false);
+            if (check) p = dest;
+
+            #if debug
+            final opcode =  op == JZ ? '==' : '!=';
+            trace(OpCode.toString(op) + ' $val $opcode 0 -> $dest');
+            #end
+
+          case JLT | JGT | JEQ:
+            final left = regs[b[p++]];
+            final right = regs[b[p++]];
+            final dest = b[p++];
+
+            final check:Bool = switch op {
+              case JLT: left < right;
+              case JGT: left > right;
+              case JEQ: left == right;
+              default: 0;
+            }
+            if (check) p = dest;
+
+            #if debug
+            final opcode = switch op {
+              case JLT: '<';
+              case JGT: '>';
+              case JEQ: '==';
+              default: '?';
+            }
+            trace(OpCode.toString(op) + ' $left $opcode $right -> $dest');
+            #end
+
           case RET:
             final dest = b[p++];
             #if debug trace(OpCode.toString(op), 'R$dest ${Std.string((dest == -1) ? null : regs[dest])}'); #end
