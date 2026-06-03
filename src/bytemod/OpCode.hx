@@ -60,6 +60,9 @@ enum abstract OpCode(Int) from Int to Int {
   var INC  = 39; // R1++
   var DEC  = 40; // R1--
 
+  // String Extensions
+  var STR_CAT = 41; // R1 = Std.string(R2) + Std.string(R3)
+
   public static function toString(op:Int):String {
     return switch op {
       case ADD: "ADD";
@@ -111,6 +114,8 @@ enum abstract OpCode(Int) from Int to Int {
 
       case INC: "INC";
       case DEC: "DEC";
+
+      case STR_CAT: "STR_CAT";
 
       default: "UNKNOWN_" + op;
     }

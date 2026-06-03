@@ -5,11 +5,10 @@ import Type.ValueType;
 
 using StringTools;
 
-// TODO: FIX "test" + 1 to show or work as test1.
 // TODO: FIX packages
+// TODO: IMPLEMENT String Interpolation
 // TODO: IMPLEMENT function calls (recursive and such), lambda, and callbacks (also fix locals to be allowed in callbacks and such)
 // TODO: IMPLEMENT more statements (if, while, do while, switch, for, try catch)
-// TODO: IMPLEMENT String Interpolation
 // TODO: IMPLEMENT import/usings
 // TODO: IMPLEMENT import.hx
 // TODO: IMPLEMENT function args
@@ -531,7 +530,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
       var destReg = nextRegister();
       var opcode:Int = switch op {
-        case "+": OpCode.ADD;
+        case "+": (isStringLiteral(leftReg) || isStringLiteral(rightReg)) ? OpCode.STR_CAT : OpCode.ADD;
         case "-": OpCode.SUB;
         case "*": OpCode.MUL;
         case "/": OpCode.DIV;
@@ -720,7 +719,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     }
 
     // Check for strings
-    if (t.startsWith('"')) {
+    if (t.startsWith('"') || t.startsWith("'")) {
       read();
       registerValues.set(reg, t.substring(1, t.length - 1));
       return reg;
@@ -768,6 +767,23 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     }
   }
 
+  private function isStringLiteral(reg:Int) {
+    var i = this.bytecode.length - 1;
+    while (i >= 0) {
+      if (this.bytecode[i] == OpCode.LDC && i + 2 < this.bytecode.length && this.bytecode[i + 1] == reg) {
+        var constIdx = this.bytecode[i + 2];
+        var value = this.constants[constIdx];
+        return (value is String);
+      }
+
+      if (this.bytecode[i] == OpCode.LDI && i + 1 < this.bytecode.length && this.bytecode[i + 1] == reg) {
+        return false;
+      }
+      i--;
+    }
+    return false;
+  }
+
   public function parseBytecode(?tokens:Array<Token>):Array<Int> {
     return null;
   }
@@ -801,11 +817,11 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   }
 
   /**
-     * Function that returns the ID of a constant.
-     *
-     * @param value The value of the constant
-     * @return The ID of the constant if it exists already, or a new constant ID if newly added.
-     */
+   * Function that returns the ID of a constant.
+   *
+   * @param value The value of the constant
+   * @return The ID of the constant if it exists already, or a new constant ID if newly added.
+   */
   private function getConstantID(value:Dynamic):Int {
     var key:String = "";
     var type = Type.typeof(value);

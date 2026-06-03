@@ -23,7 +23,7 @@ class TestClas {
 //  static function testFunc():Float {
 //    return haxe.Timer.stamp();
 //  }
-  static function test():Int {
+  static function test() {
 //    var i = haxe.Timer.stamp();
 //    return haxe.Timer.stamp();
   }

@@ -253,6 +253,14 @@ class BytemodVM {
             trace(OpCode.toString(op) + ' R$dest ($opSign$val = ${regs[dest]})');
             #end
 
+          case STR_CAT:
+            final dest = b[p++];
+            final left:Dynamic = regs[b[p++]];
+            final right:Dynamic = regs[b[p++]];
+            regs[dest] = Std.string(left) + Std.string(right);
+
+            #if debug trace(OpCode.toString(op) + ' R$dest $left + $right = ${regs[dest]}'); #end
+
           default:
             #if debug trace('Unknown OpCode: ${OpCode.toString(op)} at PC: $p'); #end
             break;

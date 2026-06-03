@@ -39,7 +39,7 @@ class BytemodPrinter {
       var output = '[${toHex(addr)}] ${OpCode.toString(op)} ';
       switch op {
         // 3-Register Ops: R_dest, R_left, R_right
-        case ADD | SUB | MUL | DIV | MOD | AND | OR | XOR | SHL | SHR | USHR | EQ | NEQ | LT | GT | LTE | GTE | IS:
+        case ADD | SUB | MUL | DIV | MOD | AND | OR | XOR | SHL | SHR | USHR | EQ | NEQ | LT | GT | LTE | GTE | IS | STR_CAT:
           output += 'R${read()}, R${read()}, R${read()}';
 
         // 2-Register Ops: R_dest, R_src
