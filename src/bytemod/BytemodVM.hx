@@ -93,6 +93,22 @@ class BytemodVM {
             trace(OpCode.toString(op) + ' R$dest $left $opSign $right = ${regs[dest]}');
             #end
 
+          case LAND | LOR:
+            final dest = b[p++];
+            final left:Dynamic = regs[b[p++]];
+            final right:Dynamic = regs[b[p++]];
+
+            regs[dest] = switch op {
+              case LAND: left && right;
+              case LOR:  left || right;
+              default: false;
+            }
+
+            #if debug
+            var opSign = op == LAND ? '&&' : '||';
+            trace(OpCode.toString(op) + ' R$dest $left $opSign $right = ${regs[dest]}');
+            #end
+
           case NOT | BNOT | NEG:
             final dest = b[p++];
             final val = regs[b[p++]];
@@ -234,10 +250,11 @@ class BytemodVM {
             #if debug trace(OpCode.toString(op) + ' -> $dest'); #end
 
           case JZ | JNZ:
-            final val = regs[b[p++]];
+            final val:Dynamic = regs[b[p++]];
             final dest = b[p++];
 
-            final check:Bool = op == JZ ? (val == 0 || val == false) : (val != 0 && val != false);
+            final isFalse = (val == 0 || val == false || val == null);
+            final check:Bool = op == JZ ? isFalse : !isFalse;
             if (check) p = dest;
 
             #if debug
@@ -254,7 +271,7 @@ class BytemodVM {
               case JLT: left < right;
               case JGT: left > right;
               case JEQ: left == right;
-              default: 0;
+              default: false;
             }
             if (check) p = dest;
 

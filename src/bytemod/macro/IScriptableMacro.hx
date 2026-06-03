@@ -38,7 +38,7 @@ class IScriptableMacro {
     }
 
     if (!inheritsScriptField && !hasLocalScriptField) {
-      Sys.println(' Injecting `_script` and `_callScriptFunc` into base class: $className');
+      #if debug Sys.println(' Injecting `_script` and `_callScriptFunc` into base class: $className'); #end
 
       var injectedFields = (macro class {
         public var _script:bytemod.BytemodScript.Scriptable = null;
@@ -52,8 +52,8 @@ class IScriptableMacro {
       }).fields;
 
       fields = fields.concat(injectedFields);
-    } else
-      #if debug Sys.println(' Skipping injection: $className inherits script properties from parent class.'); #end
+    }
+    #if debug else Sys.println(' Skipping injection: $className inherits script properties from parent class.'); #end
 
     for (f in fields) {
       switch f.kind {

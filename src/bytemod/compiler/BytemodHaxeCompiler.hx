@@ -5,10 +5,11 @@ import Type.ValueType;
 
 using StringTools;
 
-// TODO: OPTIMIZE Use reverse logic trick for jumps ( A <= B -> B > A )
-// TODO: ADD Allow default and optional arguments in functions and lambdas (when added)!
+// TODO: FIX variable cant be declared as booleans for some reason and instead Strings ?
 // TODO: FIX packages
 // TODO: FIX Floats not being used in arithemtic operators (like Math.PI)
+// TODO: OPTIMIZE Use reverse logic trick for jumps ( A <= B -> B > A )
+// TODO: ADD Allow default and optional arguments in functions and lambdas (when added)!
 // TODO: IMPLEMENT binary and hexadecimal values
 // TODO: IMPLEMENT Null Coalescing operators, ternary and such
 // TODO: IMPLEMENT String Interpolation
@@ -27,7 +28,7 @@ using StringTools;
 // TODO: IMPLEMENT Arrays/Maps and such data types
 // TODO: IMPLEMENT a way to use bytecode from haxe code maybe?
 // TODO: IMPLEMENT Wildcards
-// TODO: IMPLEMENT Operator Overload and other custom metadatas
+// TODO: IMPLEMENT Operator Overload and other custom metadata
 class BytemodHaxeCompiler implements IBytemodCompiler {
   public var fileName:Null<String> = null;
   private var tokens:Array<Token> = [];
@@ -264,7 +265,8 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
           default:
             if (flags != Modifier.None) {
               classDef.fields.push(parseField(memberMeta, flags));
-            } else {
+            }
+            else {
               var unknown = read();
               fatal('Unexpected token "$unknown" inside class body.');
             }
@@ -500,9 +502,33 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       return;
     }
 
+    if (match("if")) {
+      expect("(");
+      var condReg = parseExpression();
+      expect(")");
+      ensureEmitted(condReg);
+
+      this.bytecode.push(OpCode.JZ);
+      this.bytecode.push(condReg);
+      var jumpID:Int = this.bytecode.length;
+      this.bytecode.push(0);
+
+      // Parse expression block
+      if (peek() == "{") {
+        parseFunctionBody(true);
+      }
+      else {
+        parseStatement();
+      }
+
+      this.bytecode[jumpID] = this.bytecode.length;
+
+      return;
+    }
+
     // Nothing else is yet allowed so we just read it forever untill reaching the end of the field/function
     while (cursor < this.tokens.length && peek() != ';' && peek() != '}') {
-      var exprReg = parseExpression(0);
+      var exprReg = parseExpression();
 
       ensureEmitted(exprReg);
       match(';');
@@ -547,6 +573,9 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
         case "<<": OpCode.SHL;
         case ">>": OpCode.SHR;
         case ">>>": OpCode.USHR;
+
+        case "&&": OpCode.LAND;
+        case "||": OpCode.LOR;
 
         case "==": OpCode.EQ;
         case "!=": OpCode.NEQ;
@@ -604,7 +633,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
         default: fatal("Unsupported pre-operator: " + t);
       }
       var destreg = nextRegister();
-      var value = parseExpression(6);
+      var value = parseExpression(7);
       ensureEmitted(value);
 
       this.bytecode.push(opcode);
@@ -625,7 +654,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
     // Check for groups
     if (match("(")) {
-      var groupReg = parseExpression(0);
+      var groupReg = parseExpression();
       expect(")");
       return groupReg;
     }
@@ -640,7 +669,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       // Collect arguments
       var argsRegisters:Array<Int> = [];
       while (cursor < tokens.length && peek() != ")") {
-        var argReg = parseExpression(0);
+        var argReg = parseExpression();
         ensureEmitted(argReg);
         argsRegisters.push(argReg);
         if (peek() == ",") read();
@@ -763,11 +792,12 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   private function getPrecedence(op:String):Int {
     return switch op {
       case "||": 1;
-      case "&&" | "&" | "|" | "^" | "<<" | ">>" | ">>>": 2;
-      case "==" | "!=": 3;
-      case "<" | ">" | "<=" | ">=": 4;
-      case "+" | "-": 5;
-      case "*" | "/" | "%": 6;
+      case "&&": 2;
+      case "==" | "!=" | "<" | ">" | "<=" | ">=": 3;
+      case "+" | "-": 4;
+      case "*" | "/" | "%": 5;
+      case "&" | "|" | "^": 6;
+      case "<<" | ">>" | ">>>": 7;
       default: 0;
     }
   }
@@ -901,7 +931,8 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     if (match('=')) {
       if (peek() == '{') {
         skipBraces();
-      } else {
+      }
+      else {
         while (cursor < tokens.length && peek() != ';') {
           var next = peek();
           if (next == 'class' || next == 'enum' || next.startsWith('@')) break;
@@ -909,7 +940,8 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
         }
         match(';');
       }
-    } else if (peek() == '{') {
+    }
+    else if (peek() == '{') {
       skipBraces();
     }
   }
