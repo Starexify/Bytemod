@@ -55,17 +55,14 @@ enum abstract OpCode(Int) from Int to Int {
   var JMP     = 34; // pc = target
   var JZ      = 35; // if (!R1) pc = target
   var JNZ     = 36; // if (R1) pc = target
-  var JLT     = 37; // if (R1 < R2) pc = target
-  var JGT     = 38; // if (R1 > R2) pc = target
-  var JEQ     = 39; // if (R1 == R2) pc = target
-  var RET     = 40; // return R1
+  var RET     = 37; // return R1
 
   // Optimization Ops
-  var INC     = 41; // R1++
-  var DEC     = 42; // R1--
+  var INC     = 38; // R1++
+  var DEC     = 39; // R1--
 
   // String Extensions
-  var STR_CAT = 43; // R1 = Std.string(R2) + Std.string(R3)
+  var STR_CAT = 40; // R1 = Std.string(R2) + Std.string(R3)
 
   public static function toString(op:Int):String {
     return switch op {
@@ -114,9 +111,6 @@ enum abstract OpCode(Int) from Int to Int {
       case JMP:   "JMP";
       case JZ:    "JZ";
       case JNZ:   "JNZ";
-      case JLT:   "JLT";
-      case JGT:   "JGT";
-      case JEQ:   "JEQ";
       case RET:   "RET";
 
       case INC:   "INC";

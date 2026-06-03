@@ -7,7 +7,6 @@ using StringTools;
 
 // TODO: FIX variable cant be declared as booleans for some reason and instead Strings ?
 // TODO: FIX packages
-// TODO: OPTIMIZE Use reverse logic trick for jumps ( A <= B -> B > A )
 // TODO: ADD Allow default and optional arguments in functions and lambdas (when added)!
 // TODO: IMPLEMENT binary and hexadecimal values
 // TODO: IMPLEMENT Null Coalescing operators, ternary and such
@@ -429,8 +428,8 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     if (isBlock) {
       expect('{');
       // Parse block later
-      while (cursor < tokens.length && peek() != "}") {
-        if (match(";")) continue;
+      while (cursor < tokens.length && peek() != '}') {
+        if (match(';')) continue;
         parseStatement();
       }
       expect('}');
@@ -441,12 +440,12 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   }
 
   public function parseStatement(?tokens:Array<Token>):Void {
-    if (match("return")) {
+    if (match('return')) {
       // Handle void return
-      if (peek() == ";") {
+      if (peek() == ';') {
         this.bytecode.push(OpCode.RET);
         this.bytecode.push(-1); // void return
-        match(";");
+        match(';');
         return;
       }
 
@@ -454,26 +453,25 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       var reg = parseExpression();
       ensureEmitted(reg);
 
-      // [OpCode.RET, Register]
       this.bytecode.push(OpCode.RET);
-      this.bytecode.push(reg); // push R1
+      this.bytecode.push(reg);
 
-      match(";");
+      match(';');
       return;
     }
 
-    if (match("var")) {
+    if (match('var')) {
       var name = read();
       var reg = nextRegister();
 
       // Register the variable name to this register ID
       localVariables.set(name, reg);
 
-      if (match(":")) {
-        parseType(); // We skip the type for now as we are dynamic
+      if (match(':')) {
+        parseType(); // Skip the type
       }
 
-      if (match("=")) {
+      if (match('=')) {
         var exprReg = parseExpression();
 
         if (registerValues.exists(exprReg)) {
@@ -497,31 +495,81 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
           this.bytecode.push(exprReg);
         }
       }
-      match(";");
+      match(';');
       return;
     }
 
-    if (match("if")) {
-      expect("(");
-      var condReg = parseExpression();
-      expect(")");
-      ensureEmitted(condReg);
+    if (match('if')) {
+      var exitJumps:Array<Int> = [];
+      var nextTargetID:Int = -1;
 
-      this.bytecode.push(OpCode.JZ);
-      this.bytecode.push(condReg);
-      var jumpID:Int = this.bytecode.length;
-      this.bytecode.push(0);
+      while (true) {
+        expect('(');
+        var condReg = parseExpression();
+        expect(')');
+        ensureEmitted(condReg);
 
-      // Parse expression block
-      if (peek() == "{") {
-        parseFunctionBody(true);
+        var jmpOp = OpCode.JZ;
+
+        #if BYTEMOD_IF_OPT
+        if (this.bytecode.length >= 4) {
+          var opIdx = this.bytecode.length - 4;
+          var lastOpcode = this.bytecode[opIdx];
+          var canOptimize = true;
+          var reversedOpcode = -1;
+
+          switch (lastOpcode) {
+            case OpCode.NEQ: jmpOp = OpCode.JNZ; reversedOpcode = OpCode.EQ;
+            case OpCode.EQ:  jmpOp = OpCode.JNZ; reversedOpcode = OpCode.NEQ;
+            case OpCode.LTE: jmpOp = OpCode.JNZ; reversedOpcode = OpCode.GT;
+            case OpCode.GTE: jmpOp = OpCode.JNZ; reversedOpcode = OpCode.LT;
+            case OpCode.LT:  jmpOp = OpCode.JNZ; reversedOpcode = OpCode.GTE;
+            case OpCode.GT:  jmpOp = OpCode.JNZ; reversedOpcode = OpCode.LTE;
+            default: canOptimize = false;
+          }
+
+          if (canOptimize) this.bytecode[opIdx] = reversedOpcode;
+        }
+        #end
+
+        this.bytecode.push(jmpOp);
+        this.bytecode.push(condReg);
+        nextTargetID = this.bytecode.length;
+        this.bytecode.push(0);
+
+        // Parse expression block
+        if (peek() == "{") {
+          parseFunctionBody(true);
+        }
+        else {
+          parseStatement();
+        }
+
+        if (peek() == "else") {
+          this.bytecode.push(OpCode.JMP);
+          exitJumps.push(this.bytecode.length);
+          this.bytecode.push(0);
+        }
+
+        this.bytecode[nextTargetID] = this.bytecode.length;
+
+        if (match('else')) {
+          if (match('if')) continue;
+          else {
+            if (peek() == "{") {
+              parseFunctionBody(true);
+            }
+            else {
+              parseStatement();
+            }
+            break;
+          }
+        }
+        else break;
       }
-      else {
-        parseStatement();
-      }
 
-      this.bytecode[jumpID] = this.bytecode.length;
-
+      var endAddress = this.bytecode.length;
+      for (jmpAddr in exitJumps) this.bytecode[jmpAddr] = endAddress;
       return;
     }
 

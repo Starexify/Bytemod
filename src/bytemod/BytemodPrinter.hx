@@ -76,9 +76,6 @@ class BytemodPrinter {
         case JZ | JNZ:
           output += 'R${read()} -> ${toHex(read())}';
 
-        case JLT | JGT | JEQ:
-          output += 'R${read()}, R${read()} -> ${toHex(read())}';
-
         case RET:
           output += 'R${read()}';
 

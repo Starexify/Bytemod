@@ -9,6 +9,7 @@ class Build {
     // haxe --run Build --verbose
     if (args.contains("--verbose")) VERBOSE = true;
     var isStrict = args.contains("--strict") || args.contains("strict");
+    var isIfOpt = true;
 
     // haxe --run Build clean
     if (args.contains("clean")) {
@@ -32,6 +33,11 @@ class Build {
       if (isStrict) {
         haxeArgs.push("-D");
         haxeArgs.push("BYTEMOD_STRICT_COMP");
+      }
+
+      if (isIfOpt) {
+        haxeArgs.push("-D");
+        haxeArgs.push("BYTEMOD_IF_OPT");
       }
 
       Sys.command("haxe", haxeArgs);
@@ -61,6 +67,11 @@ class Build {
       if (isStrict) {
         haxeArgs.push("-D");
         haxeArgs.push("BYTEMOD_STRICT_COMP");
+      }
+
+      if (isIfOpt) {
+        haxeArgs.push("-D");
+        haxeArgs.push("BYTEMOD_IF_OPT");
       }
 
       Sys.command("haxe", haxeArgs);
@@ -94,6 +105,11 @@ class Build {
       if (isStrict) {
         haxeArgs.push("-D");
         haxeArgs.push("BYTEMOD_STRICT_COMP");
+      }
+
+      if (isIfOpt) {
+        haxeArgs.push("-D");
+        haxeArgs.push("BYTEMOD_IF_OPT");
       }
 
       // Move the executable in bin
