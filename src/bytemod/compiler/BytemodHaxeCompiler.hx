@@ -39,7 +39,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
   private var constantIDs:Map<String, Int>;
 
-  private var currentClassName:String = "";
+  private var currentClassName:String = '';
   private var currentFields:Map<String, {id:Int, flags:Modifier}> = new Map();
 
   public var packageName:String;
@@ -72,7 +72,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   }
 
   public function new(?fileName:String) {
-    this.fileName = fileName ?? 'unknown';
+    this.fileName = fileName ?? "unknown";
     resetImportMap();
   }
 
@@ -95,7 +95,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       // Parse the header of the file (imports, usings, packages)
       while (cursor < this.tokens.length) {
         var t = peek();
-        if (t == 'import' || t == 'using' || t == 'package') parseHeader();
+        if (t == "import" || t == "using" || t == "package") parseHeader();
         else break;
       }
 
@@ -112,9 +112,9 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
         var t = peek();
         switch t {
-          case 'class': classes.push(parseClass(meta));
-          case 'enum': enums.push(parseEnum(meta));
-          case 'interface', 'typedef', 'abstract': skipTypeDefinition();
+          case "class": classes.push(parseClass(meta));
+          case "enum": enums.push(parseEnum(meta));
+          case "interface", "typedef", "abstract": skipTypeDefinition();
           default: fatal('Unexpected token "$t" at top level.');
         }
       }
@@ -136,7 +136,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       return createResult(true);
 
     } catch (e:String) {
-      if (e == '__BYTEMOD_FATAL__') return createResult(false);
+      if (e == "__BYTEMOD_FATAL__") return createResult(false);
       // Throw the actual haxe error if it's not a compilation error.
       throw e;
     }
@@ -166,15 +166,15 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     expect(';');
 
     switch t {
-      case 'import':
+      case "import":
         final parts = path.split('.');
         final alias = parts[parts.length - 1];
         importMap.set(alias, path);
 
-      case 'using':
+      case "using":
         usingList.push(path);
 
-      case 'package':
+      case "package":
         if (this.packageName != '') {
           fatal('Only one package declaration is allowed.');
         }
@@ -187,10 +187,10 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   }
 
   public function parseClass(meta:Array<MetadataEntry>):ClassDefinition {
-    expect('class');
+    expect("class");
 
     var name = read();
-    checkDuplicateType(name, 'class');
+    checkDuplicateType(name, "class");
     this.currentClassName = name;
     var nameID = getConstantID(name);
     var pkgID = getConstantID(this.packageName);
@@ -210,14 +210,14 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
     // Check for stuff like extended or implement or such
     while (cursor < tokens.length && peek() != '{') {
-      if (match('extends')) {
+      if (match("extends")) {
         extendsClassName = read();
         while (match('.')) {
-          extendsClassName += "." + read();
+          extendsClassName += '.' + read();
         }
         classDef.extendsID = getConstantID(extendsClassName);
       }
-      else if (match('implements')) {
+      else if (match("implements")) {
         continue;
       }
       else {
@@ -239,24 +239,24 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       while (cursor < tokens.length && collecting) {
         var t = peek();
         switch t {
-          case 'public': read(); flags = flags.set(Modifier.Public);
-          case 'private': read(); flags = flags.set(Modifier.Private);
-          case 'static': read(); flags = flags.set(Modifier.Static);
-          case 'inline': read(); flags = flags.set(Modifier.Inline);
-          case 'dynamic': read();
-          case 'override': read();
-          case 'final': read(); flags = flags.set(Modifier.Final);
+          case "public": read(); flags = flags.set(Modifier.Public);
+          case "private": read(); flags = flags.set(Modifier.Private);
+          case "static": read(); flags = flags.set(Modifier.Static);
+          case "inline": read(); flags = flags.set(Modifier.Inline);
+          case "dynamic": read();
+          case "override": read();
+          case "final": read(); flags = flags.set(Modifier.Final);
             var next = peek();
-            if (next != 'var' && next != 'function') {
+            if (next != "var" && next != "function") {
               classDef.fields.push(parseField(memberMeta, flags));
               collecting = false;
             }
 
-          case 'var':
+          case "var":
             classDef.fields.push(parseField(memberMeta, flags));
             collecting = false;
 
-          case 'function':
+          case "function":
             classDef.functions.push(parseFunction(memberMeta, flags));
             collecting = false;
 
@@ -278,9 +278,9 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   }
 
   public function parseEnum(meta:Array<MetadataEntry>):EnumDefinition {
-    expect('enum');
+    expect("enum");
     var name = read();
-    checkDuplicateType(name, 'enum');
+    checkDuplicateType(name, "enum");
     var nameID = getConstantID(name);
     var pkgID = getConstantID(this.packageName);
 
@@ -303,7 +303,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   }
 
   public function parseField(meta:Array<MetadataEntry>, flags:Modifier):VariableDefinition {
-    match('var'); // check 'var'
+    match("var"); // check "var"
 
     var name = read();
     var nameID = getConstantID(name);
@@ -401,9 +401,9 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
     // Check end return.
     if (startAddress != -1) {
-      var retTypeName = (returnTypeID != -1) ? this.constants[returnTypeID] : "Void";
+      var retTypeName = (returnTypeID != -1) ? this.constants[returnTypeID] : 'Void';
       var endsWithRet = (this.bytecode.length >= 2 && this.bytecode[this.bytecode.length - 2] == OpCode.RET);
-      if (retTypeName == "Void" && !endsWithRet) {
+      if (retTypeName == 'Void' && !endsWithRet) {
         this.bytecode.push(OpCode.RET);
         this.bytecode.push(-1);
       }
@@ -440,7 +440,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
   }
 
   public function parseStatement(?tokens:Array<Token>):Void {
-    if (match('return')) {
+    if (match("return")) {
       // Handle void return
       if (peek() == ';') {
         this.bytecode.push(OpCode.RET);
@@ -460,7 +460,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       return;
     }
 
-    if (match('var')) {
+    if (match("var")) {
       var name = read();
       var reg = nextRegister();
 
@@ -499,7 +499,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
       return;
     }
 
-    if (match('if')) {
+    if (match("if")) {
       var exitJumps:Array<Int> = [];
       var nextTargetID:Int = -1;
 
@@ -538,7 +538,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
         this.bytecode.push(0);
 
         // Parse expression block
-        if (peek() == "{") {
+        if (peek() == '{') {
           parseFunctionBody(true);
         }
         else {
@@ -556,7 +556,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
         if (match('else')) {
           if (match('if')) continue;
           else {
-            if (peek() == "{") {
+            if (peek() == '{') {
               parseFunctionBody(true);
             }
             else {
@@ -608,28 +608,28 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
       var destReg = nextRegister();
       var opcode:Int = switch op {
-        case "+": (isStringLiteral(leftReg) || isStringLiteral(rightReg)) ? OpCode.STR_CAT : OpCode.ADD;
-        case "-": OpCode.SUB;
-        case "*": OpCode.MUL;
-        case "/": OpCode.DIV;
-        case "%": OpCode.MOD;
+        case '+': (isStringLiteral(leftReg) || isStringLiteral(rightReg)) ? OpCode.STR_CAT : OpCode.ADD;
+        case '-': OpCode.SUB;
+        case '*': OpCode.MUL;
+        case '/': OpCode.DIV;
+        case '%': OpCode.MOD;
 
-        case "&": OpCode.AND;
-        case "|": OpCode.OR;
-        case "^": OpCode.XOR;
-        case "<<": OpCode.SHL;
-        case ">>": OpCode.SHR;
-        case ">>>": OpCode.USHR;
+        case '&': OpCode.AND;
+        case '|': OpCode.OR;
+        case '^': OpCode.XOR;
+        case '<<': OpCode.SHL;
+        case '>>': OpCode.SHR;
+        case '>>>': OpCode.USHR;
 
-        case "&&": OpCode.LAND;
-        case "||": OpCode.LOR;
+        case '&&': OpCode.LAND;
+        case '||': OpCode.LOR;
 
-        case "==": OpCode.EQ;
-        case "!=": OpCode.NEQ;
-        case "<": OpCode.LT;
-        case ">": OpCode.GT;
-        case "<=": OpCode.LTE;
-        case ">=": OpCode.GTE;
+        case '==': OpCode.EQ;
+        case '!=': OpCode.NEQ;
+        case '<': OpCode.LT;
+        case '>': OpCode.GT;
+        case '<=': OpCode.LTE;
+        case '>=': OpCode.GTE;
 
         default: fatal("Unsupported operator: " + op);
       };
@@ -677,16 +677,16 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
         case '!': OpCode.NOT;
         case '~': OpCode.BNOT;
         case '-': OpCode.NEG;
-        default: fatal("Unsupported pre-operator: " + t);
+        default: fatal('Unsupported pre-operator: $t');
       }
-      var destreg = nextRegister();
-      var value = parseExpression(7);
-      ensureEmitted(value);
+      var destReg = nextRegister();
+      var val = parseExpression(7);
+      ensureEmitted(val);
 
       this.bytecode.push(opcode);
-      this.bytecode.push(destreg);
-      this.bytecode.push(value);
-      return destreg;
+      this.bytecode.push(destReg);
+      this.bytecode.push(val);
+      return destReg;
     }
     if (t == '++' || t == '--') {
       read(); // eat the ++ or --
@@ -700,28 +700,28 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     }
 
     // Check for groups
-    if (match("(")) {
+    if (match('(')) {
       var groupReg = parseExpression();
-      expect(")");
+      expect(')');
       return groupReg;
     }
 
     // Check for super calls
     if (t == "super") {
       read(); // eat "super"
-      expect(".");
+      expect('.');
       var methodName = read();
-      expect("(");
+      expect('(');
 
       // Collect arguments
       var argsRegisters:Array<Int> = [];
-      while (cursor < tokens.length && peek() != ")") {
+      while (cursor < tokens.length && peek() != ')') {
         var argReg = parseExpression();
         ensureEmitted(argReg);
         argsRegisters.push(argReg);
-        if (peek() == ",") read();
+        if (peek() == ',') read();
       }
-      expect(")");
+      expect(')');
 
       var arrayReg = nextRegister();
       registerValues.set(arrayReg, argsRegisters);
@@ -744,7 +744,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
 
       // Handle post-ops
       if (peek() == '++' || peek() == '--') {
-        var op = read(); // eat the ++ or --
+        var op = read(); // eat ++ or --
 
         var tempReg = nextRegister();
         this.bytecode.push(OpCode.MOV);
@@ -810,7 +810,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
     if (~/^[a-zA-Z_][a-zA-Z0-9_]*$/.match(t)) {
       var name = read();
 
-      if (match(".")) {
+      if (match('.')) {
         var fieldName = read();
         var reg = nextRegister();
 
@@ -828,23 +828,23 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
         }
         return reg;
       }
-      fatal("Unknown identifier: " + name);
+      fatal('Unknown identifier: $name');
     }
 
-    fatal("Expected a value or variable, but found: " + t);
+    fatal('Expected a value or variable, but found: $t');
     return -1;
   }
 
   // TODO: Check if precedence is correct with tests !
   private function getPrecedence(op:String):Int {
     return switch op {
-      case "||": 1;
-      case "&&": 2;
-      case "==" | "!=" | "<" | ">" | "<=" | ">=": 3;
-      case "+" | "-": 4;
-      case "*" | "/" | "%": 5;
-      case "&" | "|" | "^": 6;
-      case "<<" | ">>" | ">>>": 7;
+      case '||': 1;
+      case '&&': 2;
+      case '==' | '!=' | '<' | '>' | '<=' | '>=': 3;
+      case '+' | '-': 4;
+      case '*' | '/' | '%': 5;
+      case '&' | '|' | '^': 6;
+      case '<<' | '>>' | '>>>': 7;
       default: 0;
     }
   }
@@ -905,7 +905,7 @@ class BytemodHaxeCompiler implements IBytemodCompiler {
    * @return The ID of the constant if it exists already, or a new constant ID if newly added.
    */
   private function getConstantID(value:Dynamic):Int {
-    var key:String = "";
+    var key:String = '';
     var type = Type.typeof(value);
 
     switch type {

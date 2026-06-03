@@ -66,11 +66,11 @@ enum abstract OpCode(Int) from Int to Int {
 
   public static function toString(op:Int):String {
     return switch op {
-      case ADD:  "ADD";
-      case SUB:  "SUB";
-      case MUL:  "MUL";
-      case DIV:  "DIV";
-      case MOD:  "MOD";
+      case ADD:   "ADD";
+      case SUB:   "SUB";
+      case MUL:   "MUL";
+      case DIV:   "DIV";
+      case MOD:   "MOD";
 
       case AND:   "AND";
       case OR:    "OR";

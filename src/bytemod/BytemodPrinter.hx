@@ -5,7 +5,7 @@ class BytemodPrinter {
 
   public static function disassemble(code:Array<Int>, ?constants:Array<Dynamic>):Void {
     if (code == null) {
-      Sys.println('No bytecode found.');
+      Sys.println("No bytecode found.");
       return;
     }
     trace(constants);
@@ -30,7 +30,7 @@ class BytemodPrinter {
       return strVal;
     }
 
-    Sys.println('------- DISASSEMBLY -------');
+    Sys.println("------- DISASSEMBLY -------");
     while (pc < code.length) {
       var addr:Int = pc; // Keep track of the current index
       var op:OpCode = read();

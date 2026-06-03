@@ -120,7 +120,10 @@ class BytemodVM {
             }
 
             #if debug
-            var opSign = op == NOT ? "!" : (op == BNOT ? "~" : "-");
+            var opSign = switch op {
+              case NOT: '!'; case BNOT: '~'; case NEG: '-';
+              default: '?';
+            }
             trace('${OpCode.toString(op)} R$dest $opSign$val = ${regs[dest]}');
             #end
 
@@ -273,7 +276,7 @@ class BytemodVM {
             regs[dest] = switch op {
               case INC: val + 1;
               case DEC: val - 1;
-              default:  0;
+              default: 0;
             };
 
             #if debug

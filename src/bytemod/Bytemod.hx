@@ -42,9 +42,9 @@ class Bytemod {
         var fileType:String = '';
 
         if (item.endsWith(".bm"))
-          fileType = 'Bytemod';
+          fileType = "Bytemod";
         else if (item.endsWith(".hx"))
-          fileType = 'Haxe';
+          fileType = "Haxe";
 
         if (fileType == '') continue;
 
