@@ -1,0 +1,16 @@
+{
+	"name": "Bytemod",
+	"tags": [
+		"modding",
+		"scripting",
+		"bytecode"
+	],
+	"description": "Modding framework for Haxe that uses bytecode-compiled scripts",
+	"version": "0.0.1",
+	"releasenote": "",
+	"contributors": [
+		"ImVeryBad"
+	],
+    "classPath": "src",
+	"main": "Main"
+}
